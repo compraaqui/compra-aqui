@@ -160,6 +160,70 @@
 </div>
 
 <!-- ══════════════════════════════════════════
+     PANTALLA: REMATE
+══════════════════════════════════════════ -->
+<div id="screen-remate" class="screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="btn-back" onclick="cerrarRemate()">← Volver</button>
+      <span class="topbar-brand">🔨 Remate en vivo</span>
+    </div>
+  </div>
+  <div class="admin-wrap" style="max-width:700px;">
+    <input type="hidden" id="remate-producto-id"/>
+    <input type="hidden" id="remate-producto-nombre"/>
+    <input type="hidden" id="remate-moneda"/>
+
+    <!-- Header del remate -->
+    <div class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;">
+      <img id="remate-img" style="width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius);margin-bottom:14px;display:none;"/>
+      <h2 id="remate-titulo" class="detalle-nombre" style="font-size:1.4rem;margin-bottom:8px;"></h2>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:12px;">
+        <div>
+          <div style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">Precio base</div>
+          <div id="remate-base" style="font-size:1.2rem;font-weight:700;color:var(--accent2);"></div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:0.75rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.8px;">⏳ Tiempo restante</div>
+          <div id="remate-countdown" class="detalle-countdown" style="margin:4px 0 0;font-size:1rem;"></div>
+        </div>
+      </div>
+      <div style="font-size:0.82rem;color:var(--text3);">
+        Tu alias en este remate: <strong id="remate-alias-display" style="color:var(--accent2);"></strong>
+      </div>
+    </div>
+
+    <!-- Sección de oferta -->
+    <div id="remate-input-section" class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;">
+      <div style="font-size:0.9rem;color:var(--text2);margin-bottom:12px;font-weight:600;">💰 Hacer una oferta</div>
+      <div id="remate-error" class="alert alert-danger hidden" style="margin-bottom:10px;"></div>
+      <div style="display:flex;gap:10px;">
+        <input type="number" id="remate-monto-input" placeholder="Tu oferta" style="flex:1;font-size:1.1rem;"/>
+        <button class="btn-primary" onclick="hacerOferta()" style="white-space:nowrap;">🔨 OFERTAR</button>
+      </div>
+      <div style="font-size:0.78rem;color:var(--text3);margin-top:8px;">Cada usuario puede actualizar su oferta. Solo se muestra la más alta por usuario.</div>
+    </div>
+
+    <!-- Ganador (cuando termina) -->
+    <div id="remate-ganador-section" style="display:none;" class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);">
+      <div style="text-align:center;padding:10px 0;">
+        <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
+        <div style="font-size:1rem;color:var(--text2);margin-bottom:4px;">Ganador del remate</div>
+        <div id="remate-ganador-nombre" style="font-size:1.4rem;font-weight:700;color:#34d399;margin-bottom:4px;"></div>
+        <div id="remate-ganador-monto" style="font-size:1.1rem;color:var(--text2);margin-bottom:14px;"></div>
+        <a id="remate-wa" href="#" target="_blank" class="btn-whatsapp" style="display:inline-flex;width:auto;padding:12px 24px;">💬 Contactar ganador por WhatsApp</a>
+      </div>
+    </div>
+
+    <!-- Tablero de ofertas -->
+    <div class="glass" style="border-radius:var(--radius-lg);padding:20px;">
+      <div style="font-size:0.9rem;font-weight:600;color:var(--text2);margin-bottom:14px;">📊 Tablero de ofertas en vivo</div>
+      <div id="remate-ofertas-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
      PANTALLA: ADMIN
 ══════════════════════════════════════════ -->
 <div id="screen-admin" class="screen">
@@ -258,6 +322,27 @@
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
               <input type="datetime-local" id="np-oferta-hasta" style="flex:1;min-width:200px;"/>
               <span style="color:var(--text3);font-size:0.85rem;">Dejalo vacío si no hay oferta</span>
+            </div>
+          </div>
+          <div class="field-group span2">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+              <input type="checkbox" id="np-es-remate" onchange="toggleRemateFields(this.checked)" style="width:18px;height:18px;accent-color:var(--accent)"/>
+              🔨 Activar modo REMATE / PUJA para este producto
+            </label>
+          </div>
+          <div id="remate-fields" style="display:none;grid-column:span 2;">
+            <div class="form-grid">
+              <div class="field-group">
+                <label>💰 Precio base del remate *</label>
+                <input type="number" id="np-precio-base" placeholder="Mínimo aceptado"/>
+              </div>
+              <div class="field-group">
+                <label>🏁 Fecha y hora de cierre *</label>
+                <input type="datetime-local" id="np-remate-fin"/>
+              </div>
+            </div>
+            <div class="alert" style="background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.3);color:var(--accent2);font-size:0.85rem;margin-top:8px;">
+              🔔 Los compradores verán un tablero en vivo con las ofertas ordenadas. El ganador podrá contactarte por WhatsApp automáticamente.
             </div>
           </div>
           <div class="field-group">

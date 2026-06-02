@@ -613,3 +613,40 @@ textarea { resize: vertical; }
 @media (max-width: 380px) {
   .productos-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══ PRECIO TACHADO Y OFERTA ═══ */
+.precio-tachado {
+  text-decoration: line-through;
+  color: var(--text3);
+  font-size: 0.82rem;
+  display: block;
+}
+.badge-oferta {
+  position: absolute; top: 8px; left: 8px;
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff; font-size: 0.7rem; font-weight: 700;
+  padding: 3px 8px; border-radius: 6px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.4);
+}
+.oferta-countdown {
+  font-size: 0.78rem; color: #f59e0b;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  border-radius: 6px; padding: 4px 8px;
+  margin-bottom: 6px; font-weight: 500;
+}
+.detalle-precio-anterior {
+  text-decoration: line-through;
+  color: var(--text3); font-size: 1.1rem;
+  margin-bottom: 2px;
+}
+.detalle-countdown {
+  display: inline-block;
+  font-size: 0.95rem; font-weight: 600;
+  color: #f59e0b;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 8px; padding: 8px 14px;
+  margin-bottom: 20px;
+}

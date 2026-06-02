@@ -1,0 +1,604 @@
+// ════════════════════════════════════════════════
+// CONFIGURACIÓN FIREBASE — YA ESTÁ CARGADA CON TUS DATOS
+// ════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDtrkKejWZVQ6I-OVCgw-SjVx5MRGBv5gI",
+  authDomain: "compra-aqui-963.firebaseapp.com",
+  projectId: "compra-aqui-963",
+  storageBucket: "compra-aqui-963.firebasestorage.app",
+  messagingSenderId: "245065047300",
+  appId: "1:245065047300:web:95660fcdb428a52ca94451"
+};
+
+// ════════════════════════════════════════════════
+// ⚠️ CAMBIÁ ESTO POR TU EMAIL DE ADMIN
+// ════════════════════════════════════════════════
+const ADMIN_EMAIL = "juanmikael369@gmail.com";
+
+// ════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.firestore();
+
+let currentUser    = null;
+let productosCache = [];
+let fotosActuales  = [];
+let fotoIndex      = 0;
+let config         = {};
+
+// ════════════════════════════════════════════════
+// COLORES POR TEMA
+// ════════════════════════════════════════════════
+const colores = {
+  indigo: { accent:'#6366f1', accent2:'#818cf8', accent3:'#4f46e5', glow:'rgba(99,102,241,0.3)' },
+  blue:   { accent:'#3b82f6', accent2:'#60a5fa', accent3:'#2563eb', glow:'rgba(59,130,246,0.3)' },
+  violet: { accent:'#8b5cf6', accent2:'#a78bfa', accent3:'#7c3aed', glow:'rgba(139,92,246,0.3)' },
+  cyan:   { accent:'#06b6d4', accent2:'#22d3ee', accent3:'#0891b2', glow:'rgba(6,182,212,0.3)' },
+  red:    { accent:'#ef4444', accent2:'#f87171', accent3:'#dc2626', glow:'rgba(239,68,68,0.3)' },
+  orange: { accent:'#f97316', accent2:'#fb923c', accent3:'#ea580c', glow:'rgba(249,115,22,0.3)' }
+};
+function aplicarColor(c) {
+  const t = colores[c] || colores.indigo;
+  const r = document.documentElement.style;
+  r.setProperty('--accent',  t.accent);
+  r.setProperty('--accent2', t.accent2);
+  r.setProperty('--accent3', t.accent3);
+  r.setProperty('--glow',    t.glow);
+  r.setProperty('--shadow-accent', `0 0 32px ${t.glow}`);
+  r.setProperty('--border', `${t.glow.replace('0.3','0.15')}`);
+}
+
+// ════════════════════════════════════════════════
+// CONFIG TIENDA
+// ════════════════════════════════════════════════
+async function cargarConfig() {
+  try {
+    const doc = await db.collection('config').doc('tienda').get();
+    config = doc.exists ? doc.data() : {};
+    aplicarColor(config.color || 'indigo');
+    // Aplicar textos
+    const titulo = config.titulo || 'Productos disponibles';
+    const sub    = config.subtitulo || 'Encontrá lo que buscás y contactanos por WhatsApp';
+    const el1 = document.getElementById('tienda-titulo-hero');
+    const el2 = document.getElementById('tienda-subtitulo-hero');
+    if (el1) el1.textContent = titulo;
+    if (el2) el2.textContent = sub;
+    // Nombre tienda
+    const brandEls = document.querySelectorAll('.topbar-brand, .brand-name');
+    if (config.nombre) {
+      brandEls.forEach(el => {
+        el.innerHTML = config.nombre + '<span>.</span>';
+      });
+    }
+  } catch(e) { console.log('Config no encontrada, usando defaults'); }
+}
+
+// ════════════════════════════════════════════════
+// NAVEGACIÓN
+// ════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top:0, behavior:'smooth' });
+}
+
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (id === 'tab-usuarios')  cargarUsuariosAdmin();
+  if (id === 'tab-productos') cargarProductosAdmin();
+  if (id === 'tab-config')    cargarConfigForm();
+}
+
+// ════════════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════════════
+auth.onAuthStateChanged(async (user) => {
+  await cargarConfig();
+  if (!user) { showScreen('screen-login'); return; }
+  currentUser = user;
+
+  const userRef = db.collection('usuarios').doc(user.uid);
+  const userDoc = await userRef.get();
+
+  if (userDoc.exists && userDoc.data().bloqueado === true) {
+    showScreen('screen-blocked'); return;
+  }
+
+  const nombre = userDoc.exists ? userDoc.data().nombre : (user.displayName || user.email.split('@')[0]);
+  await userRef.set({
+    uid: user.uid, email: user.email,
+    nombre, bloqueado: false,
+    fechaRegistro: userDoc.exists ? userDoc.data().fechaRegistro : new Date().toISOString(),
+    ultimoAcceso: new Date().toISOString()
+  }, { merge: true });
+
+  const nd = document.getElementById('user-name-display');
+  if (nd) nd.textContent = nombre;
+
+  if (user.email === ADMIN_EMAIL) {
+    await cargarMetricas();
+    await cargarProductosAdmin();
+    showScreen('screen-admin');
+  } else {
+    await cargarProductosTienda();
+    showScreen('screen-tienda');
+  }
+});
+
+async function loginUser() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-password').value;
+  const err   = document.getElementById('login-error');
+  err.classList.add('hidden');
+  if (!email || !pass) { mostrarError(err, 'Completá todos los campos.'); return; }
+  try {
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch(e) { mostrarError(err, traducirError(e.code)); }
+}
+
+async function registerUser() {
+  const name  = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass  = document.getElementById('reg-password').value;
+  const err   = document.getElementById('register-error');
+  const suc   = document.getElementById('register-success');
+  err.classList.add('hidden'); suc.classList.add('hidden');
+  if (!name || !email || !pass) { mostrarError(err, 'Completá todos los campos.'); return; }
+  if (pass.length < 6) { mostrarError(err, 'La contraseña debe tener al menos 6 caracteres.'); return; }
+  try {
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.collection('usuarios').doc(cred.user.uid).set({
+      uid: cred.user.uid, email, nombre: name,
+      bloqueado: false, fechaRegistro: new Date().toISOString()
+    });
+    suc.textContent = '✅ ¡Cuenta creada! Ingresando...';
+    suc.classList.remove('hidden');
+  } catch(e) { mostrarError(err, traducirError(e.code)); }
+}
+
+function logoutUser() { auth.signOut(); }
+
+function mostrarError(el, msg) {
+  el.textContent = '⚠️ ' + msg;
+  el.classList.remove('hidden');
+}
+
+function traducirError(code) {
+  const m = {
+    'auth/user-not-found':     'No existe cuenta con ese email.',
+    'auth/wrong-password':     'Contraseña incorrecta.',
+    'auth/invalid-email':      'Email inválido.',
+    'auth/email-already-in-use':'Ya existe una cuenta con ese email.',
+    'auth/weak-password':      'Contraseña muy débil (mínimo 6 caracteres).',
+    'auth/invalid-credential': 'Email o contraseña incorrectos.',
+    'auth/too-many-requests':  'Demasiados intentos. Esperá unos minutos.',
+  };
+  return m[code] || 'Error inesperado (' + code + ')';
+}
+
+// ════════════════════════════════════════════════
+// MÉTRICAS ADMIN
+// ════════════════════════════════════════════════
+async function cargarMetricas() {
+  const [prods, users] = await Promise.all([
+    db.collection('productos').get(),
+    db.collection('usuarios').get()
+  ]);
+  const total      = prods.size;
+  const vendidos   = prods.docs.filter(d => d.data().vendido).length;
+  const disponibles= total - vendidos;
+  const usersCount = users.docs.filter(d => d.data().email !== ADMIN_EMAIL).length;
+
+  setText('m-total',       total);
+  setText('m-disponibles', disponibles);
+  setText('m-vendidos',    vendidos);
+  setText('m-usuarios',    usersCount);
+}
+function setText(id, v) { const el = document.getElementById(id); if(el) el.textContent = v; }
+
+// ════════════════════════════════════════════════
+// TIENDA — CARGAR & FILTRAR
+// ════════════════════════════════════════════════
+async function cargarProductosTienda() {
+  const grid = document.getElementById('productos-grid');
+  grid.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Cargando productos...</p></div>`;
+  try {
+    const snap = await db.collection('productos').orderBy('fecha','desc').get();
+    productosCache = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    poblarFiltros();
+    renderProductosTienda(productosCache);
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p>Error al cargar productos.</p></div>`;
+  }
+}
+
+function poblarFiltros() {
+  const cats = [...new Set(productosCache.map(p => p.categoria).filter(Boolean))];
+  const sel  = document.getElementById('filtro-categoria');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Todas las categorías</option>' +
+    cats.map(c => `<option value="${c}">${c}</option>`).join('');
+}
+
+function filtrarProductos() {
+  const q     = (document.getElementById('search-input')?.value || '').toLowerCase();
+  const cat   = document.getElementById('filtro-categoria')?.value || '';
+  const est   = document.getElementById('filtro-estado')?.value   || '';
+  const fil   = productosCache.filter(p => {
+    const matchQ   = !q   || p.nombre.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q);
+    const matchCat = !cat || p.categoria === cat;
+    const matchEst = !est || (est === 'vendido' ? p.vendido : !p.vendido);
+    return matchQ && matchCat && matchEst;
+  });
+  renderProductosTienda(fil);
+}
+
+function renderProductosTienda(productos) {
+  const grid = document.getElementById('productos-grid');
+  if (!productos.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📦</div><p>No se encontraron productos.</p></div>`;
+    return;
+  }
+  grid.innerHTML = productos.map(p => {
+    const precio = formatPrecio(p.precio, p.moneda);
+    const semaforoClass = p.vendido ? 'semaforo-rojo' : 'semaforo-verde';
+    const badgeClass    = p.vendido ? 'badge-vendido' : 'badge-disponible';
+    const badgeLabel    = p.vendido ? 'VENDIDO' : 'DISPONIBLE';
+    const imgHtml = p.fotos && p.fotos[0]
+      ? `<img class="card-img" src="${p.fotos[0]}" alt="${esc(p.nombre)}" onerror="this.style.display='none'">`
+      : `<div class="card-img-ph">📦</div>`;
+    return `
+      <div class="producto-card" onclick="verDetalle('${p.id}')">
+        <div class="card-img-wrap">
+          ${imgHtml}
+          <span class="card-badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+        <div class="card-body">
+          <div class="card-nombre">${esc(p.nombre)}</div>
+          <div class="card-categoria">${p.categoria || '—'}</div>
+          <div class="card-footer">
+            <div class="card-precio">${precio}</div>
+            <span class="semaforo ${semaforoClass}"></span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════
+// DETALLE PRODUCTO
+// ════════════════════════════════════════════════
+function verDetalle(id) {
+  const p = productosCache.find(x => x.id === id);
+  if (!p) return;
+  fotosActuales = p.fotos || [];
+
+  const wa     = config.whatsapp || '5493548549097';
+  const tmpl   = config.wamsg    || 'Hola! Vi tu producto {nombre} en Comprá Aquí y me interesa. ¿Está disponible?';
+  const msg    = encodeURIComponent(tmpl.replace('{nombre}', p.nombre));
+  const waLink = `https://wa.me/${wa}?text=${msg}`;
+  const waBtn  = config.btnwa || 'CONSULTAR POR WHATSAPP';
+
+  const fotosHtml = fotosActuales.length
+    ? `<div class="detalle-fotos-grid">${fotosActuales.map((f,i) =>
+        `<img class="detalle-foto" src="${f}" alt="" onclick="abrirModal(${i})" onerror="this.style.display='none'">`
+      ).join('')}</div>`
+    : `<div style="height:180px;background:var(--bg2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:3rem;margin-bottom:24px">📦</div>`;
+
+  const specs = [
+    p.categoria ? { l:'Categoría',    v: p.categoria } : null,
+    p.estado    ? { l:'Estado',       v: p.estado }    : null,
+    p.medidas   ? { l:'Medidas',      v: p.medidas }   : null,
+    p.peso      ? { l:'Peso',         v: p.peso+'kg' } : null,
+    p.desarma   ? { l:'¿Se desarma?', v: p.desarma }   : null,
+    p.color     ? { l:'Color/Material',v:p.color }     : null,
+  ].filter(Boolean);
+
+  document.getElementById('detalle-contenido').innerHTML = `
+    ${fotosHtml}
+    <div class="detalle-nombre">${esc(p.nombre)}</div>
+    <div class="detalle-precio">${formatPrecio(p.precio, p.moneda)}</div>
+    ${p.vendido ? '<span class="pill pill-danger" style="font-size:0.85rem;padding:6px 14px;margin-bottom:20px;display:inline-flex">🔴 VENDIDO</span>' : ''}
+    ${specs.length ? `<div class="detalle-specs">${specs.map(s=>`
+      <div class="spec-card">
+        <div class="spec-label">${s.l}</div>
+        <div class="spec-value">${esc(s.v)}</div>
+      </div>`).join('')}</div>` : ''}
+    ${p.descripcion ? `<div class="detalle-desc">${esc(p.descripcion)}</div>` : ''}
+    ${p.notas ? `<div class="detalle-desc" style="border-color:#334155"><strong>📝 Notas:</strong> ${esc(p.notas)}</div>` : ''}
+    ${!p.vendido ? `<a href="${waLink}" target="_blank" class="btn-whatsapp">💬 ${esc(waBtn)}</a>` : ''}
+  `;
+
+  showScreen('screen-detalle');
+}
+
+// ════════════════════════════════════════════════
+// MODAL FOTOS
+// ════════════════════════════════════════════════
+function abrirModal(i) {
+  fotoIndex = i;
+  document.getElementById('modal-img').src = fotosActuales[i];
+  document.getElementById('modal-counter').textContent = `${i+1} / ${fotosActuales.length}`;
+  document.getElementById('modal-fotos').classList.remove('hidden');
+}
+function cerrarModal() { document.getElementById('modal-fotos').classList.add('hidden'); }
+function cambiarFoto(dir) {
+  fotoIndex = (fotoIndex + dir + fotosActuales.length) % fotosActuales.length;
+  document.getElementById('modal-img').src = fotosActuales[fotoIndex];
+  document.getElementById('modal-counter').textContent = `${fotoIndex+1} / ${fotosActuales.length}`;
+}
+
+// ════════════════════════════════════════════════
+// ADMIN — PRODUCTOS CRUD
+// ════════════════════════════════════════════════
+async function cargarProductosAdmin() {
+  const lista = document.getElementById('admin-productos-list');
+  if (!lista) return;
+  lista.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Cargando...</p></div>`;
+  const snap = await db.collection('productos').orderBy('fecha','desc').get();
+  productosCache = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  await cargarMetricas();
+  if (!productosCache.length) {
+    lista.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><p>No hay productos. Creá uno en la pestaña "+ Nuevo".</p></div>`;
+    return;
+  }
+  lista.innerHTML = productosCache.map(p => {
+    const pillClass = p.vendido ? 'pill-danger' : 'pill-success';
+    const pillLabel = p.vendido ? '🔴 Vendido' : '🟢 Disponible';
+    const imgHtml = p.fotos && p.fotos[0]
+      ? `<img src="${p.fotos[0]}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📦'">`
+      : '📦';
+    return `
+      <div class="admin-item">
+        <div class="admin-item-img">${imgHtml}</div>
+        <div class="admin-item-info">
+          <div class="admin-item-nombre">${esc(p.nombre)}</div>
+          <div class="admin-item-meta">${formatPrecio(p.precio,p.moneda)} · ${p.categoria||'Sin categoría'}</div>
+          <span class="pill ${pillClass}" style="margin-top:6px">${pillLabel}</span>
+        </div>
+        <div class="admin-item-actions">
+          <button class="btn-sm btn-sm-primary" onclick="abrirEditar('${p.id}')">✏️ Editar</button>
+          <button class="btn-sm btn-sm-warning" onclick="toggleVendido('${p.id}',${p.vendido})">${p.vendido?'↩ Disponible':'✅ Vendido'}</button>
+          <button class="btn-sm btn-sm-danger" onclick="eliminarProducto('${p.id}')">🗑️ Eliminar</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleVendido(id, actual) {
+  await db.collection('productos').doc(id).update({ vendido: !actual });
+  cargarProductosAdmin();
+}
+
+async function eliminarProducto(id) {
+  if (!confirm('¿Seguro que querés eliminar este producto? Esta acción no se puede deshacer.')) return;
+  await db.collection('productos').doc(id).delete();
+  cargarProductosAdmin();
+}
+
+function agregarFotoInput() {
+  const c = document.getElementById('fotos-inputs');
+  const i = document.createElement('input');
+  i.type = 'text'; i.className = 'foto-input';
+  i.placeholder = `Link foto ${c.children.length + 1}`;
+  c.appendChild(i);
+}
+
+async function guardarProducto() {
+  const nombre      = val('np-nombre');
+  const descripcion = val('np-descripcion');
+  const precio      = val('np-precio');
+  const err = document.getElementById('np-error');
+  const suc = document.getElementById('np-success');
+  err.classList.add('hidden'); suc.classList.add('hidden');
+
+  if (!nombre || !descripcion || !precio) {
+    mostrarError(err, 'Nombre, descripción y precio son obligatorios.'); return;
+  }
+
+  const fotos = [...document.querySelectorAll('.foto-input')]
+    .map(i => i.value.trim()).filter(Boolean);
+
+  const producto = {
+    nombre, descripcion, precio: Number(precio),
+    moneda:    val('np-moneda') || 'ARS',
+    categoria: val('np-categoria'),
+    estado:    val('np-estado'),
+    medidas:   val('np-medidas'),
+    peso:      val('np-peso') || null,
+    desarma:   val('np-desarma'),
+    color:     val('np-color'),
+    notas:     val('np-notas'),
+    fotos, vendido: false,
+    fecha: new Date().toISOString()
+  };
+
+  try {
+    await db.collection('productos').add(producto);
+    suc.textContent = '✅ Producto publicado correctamente.';
+    suc.classList.remove('hidden');
+    limpiarFormNuevo();
+    cargarMetricas();
+  } catch(e) {
+    mostrarError(err, 'Error al guardar: ' + e.message);
+  }
+}
+
+function limpiarFormNuevo() {
+  ['np-nombre','np-descripcion','np-precio','np-categoria','np-medidas',
+   'np-peso','np-estado','np-color','np-notas'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const dsel = document.getElementById('np-desarma');
+  const msel = document.getElementById('np-moneda');
+  if (dsel) dsel.value = '';
+  if (msel) msel.value = 'ARS';
+  document.getElementById('fotos-inputs').innerHTML =
+    ['1','2','3'].map(n=>`<input type="text" class="foto-input" placeholder="Link foto ${n}"/>`).join('');
+}
+
+// ═══ EDITAR ═══
+function abrirEditar(id) {
+  const p = productosCache.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('edit-id').value          = p.id;
+  document.getElementById('edit-nombre').value      = p.nombre || '';
+  document.getElementById('edit-descripcion').value = p.descripcion || '';
+  document.getElementById('edit-precio').value      = p.precio || '';
+  document.getElementById('edit-moneda').value      = p.moneda || 'ARS';
+  document.getElementById('edit-categoria').value   = p.categoria || '';
+  document.getElementById('edit-estado').value      = p.estado || '';
+  document.getElementById('edit-medidas').value     = p.medidas || '';
+  document.getElementById('edit-peso').value        = p.peso || '';
+  document.getElementById('edit-desarma').value     = p.desarma || '';
+  document.getElementById('edit-color').value       = p.color || '';
+  document.getElementById('edit-notas').value       = p.notas || '';
+  document.getElementById('edit-fotos').value       = (p.fotos || []).join('\n');
+  document.getElementById('edit-error').classList.add('hidden');
+  document.getElementById('modal-editar').classList.remove('hidden');
+}
+function cerrarModalEditar() { document.getElementById('modal-editar').classList.add('hidden'); }
+
+async function guardarEdicion() {
+  const id          = val('edit-id');
+  const nombre      = val('edit-nombre');
+  const descripcion = val('edit-descripcion');
+  const precio      = val('edit-precio');
+  const err = document.getElementById('edit-error');
+  err.classList.add('hidden');
+  if (!nombre || !descripcion || !precio) { mostrarError(err,'Nombre, descripción y precio son obligatorios.'); return; }
+
+  const fotos = val('edit-fotos').split('\n').map(l=>l.trim()).filter(Boolean);
+  const datos = {
+    nombre, descripcion, precio: Number(precio),
+    moneda:    val('edit-moneda') || 'ARS',
+    categoria: val('edit-categoria'),
+    estado:    val('edit-estado'),
+    medidas:   val('edit-medidas'),
+    peso:      val('edit-peso') || null,
+    desarma:   val('edit-desarma'),
+    color:     val('edit-color'),
+    notas:     val('edit-notas'),
+    fotos, editado: new Date().toISOString()
+  };
+  try {
+    await db.collection('productos').doc(id).update(datos);
+    cerrarModalEditar();
+    cargarProductosAdmin();
+  } catch(e) { mostrarError(err, 'Error: ' + e.message); }
+}
+
+// ════════════════════════════════════════════════
+// ADMIN — USUARIOS
+// ════════════════════════════════════════════════
+async function cargarUsuariosAdmin() {
+  const lista = document.getElementById('admin-usuarios-list');
+  if (!lista) return;
+  lista.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Cargando usuarios...</p></div>`;
+  const snap  = await db.collection('usuarios').get();
+  const users = snap.docs.map(d => d.data()).filter(u => u.email !== ADMIN_EMAIL);
+  if (!users.length) {
+    lista.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>No hay usuarios registrados aún.</p></div>`;
+    return;
+  }
+  lista.innerHTML = users.map(u => {
+    const bloq = u.bloqueado;
+    const pClass = bloq ? 'pill-danger' : 'pill-success';
+    const pLabel = bloq ? '🔴 Bloqueado' : '🟢 Activo';
+    const fecha  = u.fechaRegistro ? new Date(u.fechaRegistro).toLocaleDateString('es-AR') : '—';
+    return `
+      <div class="admin-item">
+        <div class="user-avatar">👤</div>
+        <div class="admin-item-info">
+          <div class="admin-item-nombre">${esc(u.nombre||'Sin nombre')}</div>
+          <div class="admin-item-meta">${esc(u.email)} · Registrado: ${fecha}</div>
+          <span class="pill ${pClass}" style="margin-top:6px">${pLabel}</span>
+        </div>
+        <div class="admin-item-actions">
+          <button class="btn-sm ${bloq?'btn-sm-success':'btn-sm-danger'}" onclick="toggleBloqueo('${u.uid}',${bloq})">
+            ${bloq?'🔓 Desbloquear':'🔒 Bloquear'}
+          </button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function toggleBloqueo(uid, bloqueado) {
+  await db.collection('usuarios').doc(uid).update({ bloqueado: !bloqueado });
+  cargarUsuariosAdmin();
+  cargarMetricas();
+}
+
+// ════════════════════════════════════════════════
+// ADMIN — CONFIGURACIÓN
+// ════════════════════════════════════════════════
+async function cargarConfigForm() {
+  const doc = await db.collection('config').doc('tienda').get();
+  const c   = doc.exists ? doc.data() : {};
+  setVal('cfg-nombre',    c.nombre    || 'Comprá Aquí');
+  setVal('cfg-icono',     c.icono     || '🏪');
+  setVal('cfg-whatsapp',  c.whatsapp  || '5493548549097');
+  setVal('cfg-titulo',    c.titulo    || 'Productos disponibles');
+  setVal('cfg-subtitulo', c.subtitulo || 'Encontrá lo que buscás y contactanos por WhatsApp');
+  setVal('cfg-color',     c.color     || 'indigo');
+  setVal('cfg-btnwa',     c.btnwa     || 'CONSULTAR POR WHATSAPP');
+  setVal('cfg-wamsg',     c.wamsg     || 'Hola! Vi tu producto {nombre} en Comprá Aquí y me interesa. ¿Está disponible?');
+}
+
+async function guardarConfig() {
+  const err = document.getElementById('cfg-error');
+  const suc = document.getElementById('cfg-success');
+  err.classList.add('hidden'); suc.classList.add('hidden');
+
+  const wa = val('cfg-whatsapp').replace(/\D/g,'');
+  if (!wa) { mostrarError(err,'El número de WhatsApp es obligatorio.'); return; }
+
+  const datos = {
+    nombre:    val('cfg-nombre')    || 'Comprá Aquí',
+    icono:     val('cfg-icono')     || '🏪',
+    whatsapp:  wa,
+    titulo:    val('cfg-titulo')    || 'Productos disponibles',
+    subtitulo: val('cfg-subtitulo') || '',
+    color:     val('cfg-color')     || 'indigo',
+    btnwa:     val('cfg-btnwa')     || 'CONSULTAR POR WHATSAPP',
+    wamsg:     val('cfg-wamsg')     || 'Hola! Vi tu producto {nombre} y me interesa.',
+    actualizado: new Date().toISOString()
+  };
+
+  try {
+    await db.collection('config').doc('tienda').set(datos);
+    config = datos;
+    aplicarColor(datos.color);
+    suc.textContent = '✅ Configuración guardada correctamente.';
+    suc.classList.remove('hidden');
+  } catch(e) { mostrarError(err, 'Error: ' + e.message); }
+}
+
+// ════════════════════════════════════════════════
+// HELPERS
+// ════════════════════════════════════════════════
+function val(id) {
+  const el = document.getElementById(id);
+  return el ? el.value.trim() : '';
+}
+function setVal(id, v) {
+  const el = document.getElementById(id);
+  if (el) el.value = v;
+}
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatPrecio(precio, moneda) {
+  if (!precio) return '—';
+  const n = Number(precio).toLocaleString('es-AR');
+  return moneda === 'USD' ? `USD ${n}` : `$ ${n}`;
+}

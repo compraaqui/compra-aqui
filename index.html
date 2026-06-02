@@ -243,11 +243,22 @@
             <input type="number" id="np-precio" placeholder="Ej: 15000"/>
           </div>
           <div class="field-group">
+            <label>Precio anterior (para tachar, opcional)</label>
+            <input type="number" id="np-precio-anterior" placeholder="Ej: 20000"/>
+          </div>
+          <div class="field-group">
             <label>Moneda</label>
             <select id="np-moneda">
               <option value="ARS">$ Pesos argentinos</option>
               <option value="USD">USD Dólares</option>
             </select>
+          </div>
+          <div class="field-group span2">
+            <label>⏳ Oferta por tiempo limitado (opcional)</label>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <input type="datetime-local" id="np-oferta-hasta" style="flex:1;min-width:200px;"/>
+              <span style="color:var(--text3);font-size:0.85rem;">Dejalo vacío si no hay oferta</span>
+            </div>
           </div>
           <div class="field-group">
             <label>Categoría</label>
@@ -413,11 +424,19 @@
           <input type="number" id="edit-precio"/>
         </div>
         <div class="field-group">
+          <label>Precio anterior (para tachar, opcional)</label>
+          <input type="number" id="edit-precio-anterior" placeholder="Dejá vacío si no aplica"/>
+        </div>
+        <div class="field-group">
           <label>Moneda</label>
           <select id="edit-moneda">
             <option value="ARS">$ Pesos</option>
             <option value="USD">USD Dólares</option>
           </select>
+        </div>
+        <div class="field-group span2">
+          <label>⏳ Oferta hasta (opcional)</label>
+          <input type="datetime-local" id="edit-oferta-hasta"/>
         </div>
         <div class="field-group">
           <label>Categoría</label>

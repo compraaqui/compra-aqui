@@ -148,12 +148,13 @@ async function registerUser() {
   const err   = document.getElementById('register-error');
   const suc   = document.getElementById('register-success');
   err.classList.add('hidden'); suc.classList.add('hidden');
+  const alias = (document.getElementById('reg-alias')?.value || '').trim() || name.split(' ')[0] + Math.floor(Math.random()*999);
   if (!name || !email || !pass) { mostrarError(err, 'Completá todos los campos.'); return; }
   if (pass.length < 6) { mostrarError(err, 'La contraseña debe tener al menos 6 caracteres.'); return; }
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await db.collection('usuarios').doc(cred.user.uid).set({
-      uid: cred.user.uid, email, nombre: name,
+      uid: cred.user.uid, email, nombre: name, alias,
       bloqueado: false, fechaRegistro: new Date().toISOString()
     });
     suc.textContent = '✅ ¡Cuenta creada! Ingresando...';
@@ -254,21 +255,27 @@ function renderProductosTienda(productos) {
       : `<div class="card-img-ph">📦</div>`;
     const precioAntHtml = p.precioAnterior ? `<span class="precio-tachado">${formatPrecio(p.precioAnterior, p.moneda)}</span>` : '';
     const ofertaHtml = p.ofertaHasta && !p.vendido ? `<div class="oferta-countdown" data-hasta="${p.ofertaHasta}">⏳ ...</div>` : '';
+    const isRemate = p.esRemate && !p.vendido;
+    const clickFn  = isRemate ? `verRemate('${p.id}')` : `verDetalle('${p.id}')`;
+    const remateBadge = isRemate ? '<span class="badge-remate">🔨 REMATE</span>' : '';
+    const remateCountdown = isRemate ? `<div class="oferta-countdown remate-card-countdown" data-hasta="${p.remateFin}">⏳ ...</div>` : '';
     return `
-      <div class="producto-card" onclick="verDetalle('${p.id}')">
+      <div class="producto-card" onclick="${clickFn}">
         <div class="card-img-wrap">
           ${imgHtml}
           <span class="card-badge ${badgeClass}">${badgeLabel}</span>
-          ${p.ofertaHasta && !p.vendido ? '<span class="badge-oferta">🔥 OFERTA</span>' : ''}
+          ${p.ofertaHasta && !p.vendido && !isRemate ? '<span class="badge-oferta">🔥 OFERTA</span>' : ''}
+          ${remateBadge}
         </div>
         <div class="card-body">
           <div class="card-nombre">${esc(p.nombre)}</div>
           <div class="card-categoria">${p.categoria || '—'}</div>
           ${ofertaHtml}
+          ${remateCountdown}
           <div class="card-footer">
             <div>
               ${precioAntHtml}
-              <div class="card-precio">${precio}</div>
+              <div class="card-precio">${isRemate ? '💰 Precio base: ' : ''}${precio}</div>
             </div>
             <span class="semaforo ${semaforoClass}"></span>
           </div>
@@ -415,10 +422,15 @@ async function guardarProducto() {
 
   const precioAnterior = val('np-precio-anterior');
   const ofertaHasta   = val('np-oferta-hasta');
+  const esRemate      = document.getElementById('np-es-remate')?.checked || false;
+  const remateFin     = val('np-remate-fin') || null;
+  const precioBase    = val('np-precio-base') || null;
   const producto = {
     nombre, descripcion, precio: Number(precio),
     precioAnterior: precioAnterior ? Number(precioAnterior) : null,
     ofertaHasta:    ofertaHasta || null,
+    esRemate, remateFin,
+    precioBase: precioBase ? Number(precioBase) : Number(precio),
     moneda:    val('np-moneda') || 'ARS',
     categoria: val('np-categoria'),
     estado:    val('np-estado'),
@@ -443,7 +455,7 @@ async function guardarProducto() {
 }
 
 function limpiarFormNuevo() {
-  ['np-nombre','np-descripcion','np-precio','np-precio-anterior','np-oferta-hasta','np-categoria','np-medidas',
+  ['np-nombre','np-descripcion','np-precio','np-precio-anterior','np-oferta-hasta','np-precio-base','np-remate-fin','np-categoria','np-medidas',
    'np-peso','np-estado','np-color','np-notas'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -661,3 +673,188 @@ document.addEventListener('DOMContentLoaded', () => {
   const det = document.getElementById('detalle-contenido');
   if (det) observer.observe(det, { childList: true });
 });
+
+// ════════════════════════════════════════════════
+// SISTEMA DE REMATES
+// ════════════════════════════════════════════════
+
+let remateListener = null;
+
+async function verRemate(productoId) {
+  const p = productosCache.find(x => x.id === productoId);
+  if (!p || !p.esRemate) return;
+
+  // Get user alias
+  const userDoc = await db.collection('usuarios').doc(currentUser.uid).get();
+  const userData = userDoc.data() || {};
+  const aliasUsuario = userData.alias || userData.nombre || 'Anónimo';
+
+  renderPantallaRemate(p, aliasUsuario);
+  showScreen('screen-remate');
+  iniciarEscuchaOfertas(productoId);
+}
+
+function renderPantallaRemate(p, aliasUsuario) {
+  const hasta = new Date(p.remateFin);
+  const ahora = new Date();
+  const terminado = hasta <= ahora;
+  const wa = config.whatsapp || '5493548549097';
+
+  document.getElementById('remate-titulo').textContent = p.nombre;
+  document.getElementById('remate-img').src = (p.fotos && p.fotos[0]) || '';
+  document.getElementById('remate-img').style.display = (p.fotos && p.fotos[0]) ? 'block' : 'none';
+  document.getElementById('remate-base').textContent = formatPrecio(p.precioBase || p.precio, p.moneda);
+  document.getElementById('remate-countdown').dataset.hasta = p.remateFin;
+  document.getElementById('remate-producto-id').value = p.id;
+  document.getElementById('remate-producto-nombre').value = p.nombre;
+  document.getElementById('remate-moneda').value = p.moneda || 'ARS';
+  document.getElementById('remate-wa').href = '#';
+  document.getElementById('remate-alias-display').textContent = aliasUsuario;
+
+  const inputSection = document.getElementById('remate-input-section');
+  const ganadorSection = document.getElementById('remate-ganador-section');
+
+  if (terminado) {
+    inputSection.style.display = 'none';
+    ganadorSection.style.display = 'block';
+  } else {
+    inputSection.style.display = 'block';
+    ganadorSection.style.display = 'none';
+  }
+}
+
+function iniciarEscuchaOfertas(productoId) {
+  if (remateListener) remateListener();
+  remateListener = db.collection('remates').doc(productoId)
+    .collection('ofertas')
+    .orderBy('monto', 'desc')
+    .onSnapshot(snap => {
+      const ofertas = snap.docs.map(d => d.data());
+      renderOfertas(ofertas, productoId);
+    });
+}
+
+function renderOfertas(ofertas, productoId) {
+  const lista = document.getElementById('remate-ofertas-list');
+  const p = productosCache.find(x => x.id === productoId);
+  const moneda = p ? p.moneda : 'ARS';
+  const wa = config.whatsapp || '5493548549097';
+
+  if (!ofertas.length) {
+    lista.innerHTML = '<div class="remate-empty">🔔 Sé el primero en ofertar</div>';
+    return;
+  }
+
+  // Check if remate ended
+  const hasta = p ? new Date(p.remateFin) : null;
+  const terminado = hasta && new Date() >= hasta;
+
+  lista.innerHTML = ofertas.map((o, i) => {
+    const esGanador = i === 0 && terminado;
+    const esMio     = o.uid === currentUser.uid;
+    const clases    = i === 0 ? 'oferta-item oferta-1er' : i === 1 ? 'oferta-item oferta-2do' : i === 2 ? 'oferta-item oferta-3er' : 'oferta-item';
+    const emoji     = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+    const ganBadge  = esGanador ? '<span class="badge-ganador">🏆 GANADOR</span>' : '';
+    const miBadge   = esMio ? '<span class="badge-mio">← Tu oferta</span>' : '';
+
+    // WhatsApp link for winner
+    let waBtn = '';
+    if (esGanador && esMio) {
+      const msg = encodeURIComponent(`🏆 ¡Gané el remate de "${p.nombre}"! Mi oferta fue ${formatPrecio(o.monto, moneda)}. ¿Cómo coordinamos la entrega?`);
+      waBtn = `<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="btn-remate-wa">💬 ¡Contactar al vendedor!</a>`;
+    }
+
+    return `
+      <div class="${clases}">
+        <div class="oferta-rank">${emoji}</div>
+        <div class="oferta-info">
+          <div class="oferta-alias">${esc(o.alias)} ${miBadge} ${ganBadge}</div>
+          <div class="oferta-tiempo">${new Date(o.fecha).toLocaleTimeString('es-AR', {hour:'2-digit',minute:'2-digit'})}</div>
+        </div>
+        <div class="oferta-monto">${formatPrecio(o.monto, moneda)}</div>
+        ${waBtn}
+      </div>`;
+  }).join('');
+
+  // If ended and I'm winner, show contact button for admin too
+  if (terminado && ofertas.length && currentUser.email === ADMIN_EMAIL) {
+    const ganador = ofertas[0];
+    const msg = encodeURIComponent(`🏆 Hola ${ganador.alias}, ganaste el remate de "${p.nombre}" con ${formatPrecio(ganador.monto, moneda)}. ¿Coordinamos la entrega?`);
+    document.getElementById('remate-wa').href = `https://wa.me/${wa}?text=${msg}`;
+    document.getElementById('remate-ganador-nombre').textContent = ganador.alias;
+    document.getElementById('remate-ganador-monto').textContent = formatPrecio(ganador.monto, moneda);
+    document.getElementById('remate-ganador-section').style.display = 'block';
+  }
+}
+
+async function hacerOferta() {
+  const productoId = document.getElementById('remate-producto-id').value;
+  const nombre     = document.getElementById('remate-producto-nombre').value;
+  const moneda     = document.getElementById('remate-moneda').value;
+  const montoStr   = document.getElementById('remate-monto-input').value.trim();
+  const errEl      = document.getElementById('remate-error');
+  errEl.classList.add('hidden');
+
+  if (!montoStr || isNaN(montoStr) || Number(montoStr) <= 0) {
+    errEl.textContent = 'Ingresá un monto válido.';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  const monto = Number(montoStr);
+
+  // Check if higher than current best
+  const snap = await db.collection('remates').doc(productoId)
+    .collection('ofertas').orderBy('monto','desc').limit(1).get();
+
+  if (!snap.empty) {
+    const mejorOferta = snap.docs[0].data().monto;
+    if (monto <= mejorOferta) {
+      errEl.textContent = `Tu oferta debe ser mayor a ${formatPrecio(mejorOferta, moneda)}.`;
+      errEl.classList.remove('hidden');
+      return;
+    }
+  }
+
+  // Check against base price
+  const p = productosCache.find(x => x.id === productoId);
+  const base = p ? (p.precioBase || p.precio) : 0;
+  if (monto < base) {
+    errEl.textContent = `Tu oferta debe ser al menos ${formatPrecio(base, moneda)}.`;
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  // Get alias
+  const userDoc = await db.collection('usuarios').doc(currentUser.uid).get();
+  const alias = userDoc.data()?.alias || userDoc.data()?.nombre || 'Anónimo';
+
+  try {
+    // Use uid as doc id so each user has only one offer (always updates to highest)
+    await db.collection('remates').doc(productoId)
+      .collection('ofertas').doc(currentUser.uid).set({
+        uid: currentUser.uid,
+        alias,
+        monto,
+        fecha: new Date().toISOString()
+      });
+    document.getElementById('remate-monto-input').value = '';
+    errEl.classList.add('hidden');
+  } catch(e) {
+    errEl.textContent = 'Error al ofertar: ' + e.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+function cerrarRemate() {
+  if (remateListener) { remateListener(); remateListener = null; }
+  if (currentUser && currentUser.email === ADMIN_EMAIL) {
+    showScreen('screen-admin');
+  } else {
+    showScreen('screen-tienda');
+  }
+}
+
+function toggleRemateFields(checked) {
+  document.getElementById('remate-fields').style.display = checked ? 'block' : 'none';
+}

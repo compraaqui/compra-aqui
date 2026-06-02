@@ -688,6 +688,7 @@ async function cargarConfigForm() {
   setVal('cfg-color',     c.color     || 'indigo');
   setVal('cfg-btnwa',     c.btnwa     || 'CONSULTAR POR WHATSAPP');
   setVal('cfg-wamsg',     c.wamsg     || 'Hola! Vi tu producto {nombre} en Comprá Aquí y me interesa. ¿Está disponible?');
+  setVal('cfg-logo',      c.logo      || '');
 }
 
 async function guardarConfig() {

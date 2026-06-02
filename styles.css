@@ -621,6 +621,9 @@ textarea { resize: vertical; }
   font-size: 0.82rem;
   display: block;
 }
+.precio-tachado-rojo {
+  color: #f87171 !important;
+}
 .badge-oferta {
   position: absolute; top: 8px; left: 8px;
   background: linear-gradient(135deg, #dc2626, #ef4444);
@@ -638,7 +641,7 @@ textarea { resize: vertical; }
 }
 .detalle-precio-anterior {
   text-decoration: line-through;
-  color: var(--text3); font-size: 1.1rem;
+  color: #f87171; font-size: 1.1rem;
   margin-bottom: 2px;
 }
 .detalle-countdown {
@@ -758,4 +761,89 @@ textarea { resize: vertical; }
   background: rgba(100,116,139,0.1);
   border-color: rgba(100,116,139,0.2);
   color: var(--text3);
+}
+
+/* ═══ MEJORAS VISUALES ═══ */
+.card-desc-badge {
+  background: rgba(239,68,68,0.15); color: #f87171;
+  border: 1px solid rgba(239,68,68,0.3);
+  font-size: 0.72rem; font-weight: 700;
+  padding: 2px 6px; border-radius: 4px;
+  display: inline-block;
+}
+.detalle-desc-badge {
+  background: rgba(239,68,68,0.15); color: #f87171;
+  border: 1px solid rgba(239,68,68,0.3);
+  font-size: 0.85rem; font-weight: 700;
+  padding: 3px 10px; border-radius: 6px;
+  display: inline-block;
+}
+.pill-condicion {
+  font-size: 0.82rem; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px;
+  display: inline-block;
+}
+.pill-nuevo {
+  background: rgba(16,185,129,0.15); color: #34d399;
+  border: 1px solid rgba(16,185,129,0.3);
+}
+.pill-usado {
+  background: rgba(99,102,241,0.15); color: var(--accent2);
+  border: 1px solid var(--border);
+}
+.pill-cantidad {
+  font-size: 0.82rem; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px;
+  background: rgba(245,158,11,0.1); color: #f59e0b;
+  border: 1px solid rgba(245,158,11,0.25);
+  display: inline-block;
+}
+
+/* ═══ DETALLE FOTOS RESPONSIVE ═══ */
+.detalle-fotos-wrap {
+  width: 100%; margin-bottom: 20px;
+}
+.detalle-fotos-1 .detalle-foto-main {
+  width: 100%; max-height: 480px; object-fit: contain;
+  border-radius: var(--radius-lg); cursor: zoom-in;
+  background: var(--bg2);
+}
+.detalle-fotos-2 .detalle-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.detalle-fotos-3 .detalle-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+}
+.detalle-fotos-grid .detalle-grid {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 8px;
+}
+.detalle-grid img {
+  width: 100%; aspect-ratio: 1; object-fit: cover;
+  border-radius: var(--radius); cursor: zoom-in;
+  transition: transform 0.2s;
+}
+.detalle-grid img:hover { transform: scale(1.03); }
+
+/* Remate image full width */
+#remate-img {
+  width: 100% !important;
+  max-height: 320px !important;
+  object-fit: contain !important;
+  background: var(--bg2);
+  border-radius: var(--radius-lg);
+}
+
+/* ═══ DESCRIPCION CON SALTOS DE LINEA ═══ */
+.detalle-desc {
+  white-space: pre-wrap !important;
+  word-break: break-word;
+}
+
+/* Countdown más grande en móvil */
+@media (max-width: 640px) {
+  .oferta-countdown { font-size: 0.88rem !important; padding: 6px 10px !important; }
+  .detalle-countdown { font-size: 1rem !important; }
+  .card-categoria { font-size: 0.88rem; }
+  .precio-tachado { font-size: 0.9rem; }
+  .card-desc-badge { font-size: 0.78rem; padding: 3px 8px; }
 }

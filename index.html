@@ -7,6 +7,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css"/>
   <style>@media(max-width:640px){html{font-size:18px;}}</style>
+  <meta id="og-title" property="og:title" content="Comprá Aquí"/>
+  <meta id="og-description" property="og:description" content="Productos a la venta"/>
+  <meta id="og-image" property="og:image" content="https://res.cloudinary.com/ddfukywf8/image/upload/v1780371976/sofa_cama_sillon_grande_ir4dxc.png"/>
+  <link id="favicon-link" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>"/>
 </head>
 <body>
 
@@ -301,7 +305,9 @@
           </div>
           <div class="field-group span2">
             <label>Descripción detallada *</label>
-            <textarea id="np-descripcion" rows="4" placeholder="Describí bien el producto, su historia, condición..."></textarea>
+            <textarea id="np-descripcion" rows="5" placeholder="Describí bien el producto, su historia, condición...
+
+Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></textarea>
           </div>
           <div class="field-group">
             <label>Precio *</label>
@@ -317,6 +323,25 @@
               <option value="ARS">$ Pesos argentinos</option>
               <option value="USD">USD Dólares</option>
             </select>
+          </div>
+          <div class="field-group">
+            <label>Condición del producto</label>
+            <select id="np-condicion">
+              <option value="Usado">🔄 Usado</option>
+              <option value="Nuevo">✨ Nuevo</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Cantidad disponible (opcional)</label>
+            <input type="number" id="np-cantidad" placeholder="Ej: 2" min="1"/>
+          </div>
+          <div class="field-group">
+            <label>Color</label>
+            <input type="text" id="np-color-prod" placeholder="Ej: Rojo"/>
+          </div>
+          <div class="field-group">
+            <label>Material</label>
+            <input type="text" id="np-material" placeholder="Ej: Madera, Tela..."/>
           </div>
           <div class="field-group span2">
             <label>⏳ Oferta por tiempo limitado (opcional)</label>
@@ -434,6 +459,11 @@
           <div class="field-group">
             <label>Icono / Emoji de la tienda</label>
             <input type="text" id="cfg-icono" placeholder="🏪"/>
+          </div>
+          <div class="field-group span2">
+            <label>🖼️ URL del logo (para WhatsApp y solapa del navegador)</label>
+            <input type="text" id="cfg-logo" placeholder="https://res.cloudinary.com/..."/>
+            <div class="field-hint">Subí tu logo a Cloudinary y pegá la URL acá. Se verá cuando compartas el link por WhatsApp.</div>
           </div>
           <div class="field-group">
             <label>Número de WhatsApp</label>

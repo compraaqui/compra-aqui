@@ -725,3 +725,37 @@ textarea { resize: vertical; }
   margin-top: 8px; width: 100%;
   justify-content: center;
 }
+
+/* ═══ ADMIN PRECIOS Y OFERTAS ═══ */
+.admin-precio-tachado {
+  text-decoration: line-through;
+  color: var(--text3);
+  font-size: 0.82rem;
+  margin-right: 4px;
+}
+.admin-badge-desc {
+  background: rgba(239,68,68,0.15);
+  color: #f87171;
+  border: 1px solid rgba(239,68,68,0.3);
+  font-size: 0.72rem; font-weight: 700;
+  padding: 1px 6px; border-radius: 4px;
+  margin-left: 4px;
+}
+.admin-oferta-tag {
+  font-size: 0.78rem; font-weight: 500;
+  padding: 4px 8px; border-radius: 6px;
+  margin-top: 4px; display: inline-block;
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #f59e0b;
+}
+.admin-remate-tag {
+  background: rgba(139,92,246,0.1);
+  border-color: rgba(139,92,246,0.3);
+  color: #a78bfa;
+}
+.admin-oferta-expirada {
+  background: rgba(100,116,139,0.1);
+  border-color: rgba(100,116,139,0.2);
+  color: var(--text3);
+}

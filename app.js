@@ -364,17 +364,42 @@ async function cargarProductosAdmin() {
     return;
   }
   lista.innerHTML = productosCache.map(p => {
-    const pillClass = p.vendido ? 'pill-danger' : 'pill-success';
-    const pillLabel = p.vendido ? '🔴 Vendido' : '🟢 Disponible';
-    const imgHtml = p.fotos && p.fotos[0]
+    const pillClass  = p.vendido ? 'pill-danger' : p.esRemate ? 'pill-info' : 'pill-success';
+    const pillLabel  = p.vendido ? '🔴 Vendido'  : p.esRemate ? '🔨 Remate' : '🟢 Disponible';
+    const imgHtml    = p.fotos && p.fotos[0]
       ? `<img src="${p.fotos[0]}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📦'">`
       : '📦';
+
+    // Price display
+    const precioStr  = formatPrecio(p.precio, p.moneda);
+    const antStr     = p.precioAnterior ? `<span class="admin-precio-tachado">${formatPrecio(p.precioAnterior, p.moneda)}</span> ` : '';
+    const descPct    = p.precioAnterior ? Math.round((1 - p.precio/p.precioAnterior)*100) : 0;
+    const descBadge  = descPct > 0 ? `<span class="admin-badge-desc">-${descPct}%</span>` : '';
+
+    // Oferta countdown
+    let ofertaHtml = '';
+    if (p.ofertaHasta && !p.vendido && !p.esRemate) {
+      const hasta = new Date(p.ofertaHasta);
+      const ok    = hasta > new Date();
+      ofertaHtml  = ok
+        ? `<div class="admin-oferta-tag" data-hasta="${p.ofertaHasta}">🔥 Oferta hasta: ${hasta.toLocaleDateString('es-AR')} ${hasta.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} — <span class="admin-countdown" data-hasta="${p.ofertaHasta}">⏳...</span></div>`
+        : `<div class="admin-oferta-tag admin-oferta-expirada">⌛ Oferta expirada</div>`;
+    }
+    if (p.esRemate && p.remateFin) {
+      const hasta = new Date(p.remateFin);
+      const ok    = hasta > new Date();
+      ofertaHtml  = ok
+        ? `<div class="admin-oferta-tag admin-remate-tag" data-hasta="${p.remateFin}">🔨 Remate cierra: ${hasta.toLocaleDateString('es-AR')} ${hasta.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})} — <span class="admin-countdown" data-hasta="${p.remateFin}">⏳...</span></div>`
+        : `<div class="admin-oferta-tag admin-oferta-expirada">🔨 Remate finalizado</div>`;
+    }
+
     return `
       <div class="admin-item">
         <div class="admin-item-img">${imgHtml}</div>
         <div class="admin-item-info">
           <div class="admin-item-nombre">${esc(p.nombre)}</div>
-          <div class="admin-item-meta">${formatPrecio(p.precio,p.moneda)} · ${p.categoria||'Sin categoría'}</div>
+          <div class="admin-item-meta">${antStr}${precioStr} ${descBadge} · ${p.categoria||'Sin categoría'}</div>
+          ${ofertaHtml}
           <span class="pill ${pillClass}" style="margin-top:6px">${pillLabel}</span>
         </div>
         <div class="admin-item-actions">
@@ -640,24 +665,21 @@ function formatPrecio(precio, moneda) {
 // ════════════════════════════════════════════════
 function iniciarCountdowns() {
   function actualizar() {
-    document.querySelectorAll('[data-hasta]').forEach(el => {
+    document.querySelectorAll('.oferta-countdown[data-hasta], .detalle-countdown[data-hasta], .remate-card-countdown[data-hasta]').forEach(el => {
       const hasta = new Date(el.dataset.hasta);
-      const ahora = new Date();
-      const diff  = hasta - ahora;
+      const diff  = hasta - new Date();
       if (diff <= 0) {
         el.textContent = '⌛ Oferta expirada';
         el.style.color = 'var(--text3)';
         return;
       }
-      const dias  = Math.floor(diff / 86400000);
-      const hs    = Math.floor((diff % 86400000) / 3600000);
-      const mins  = Math.floor((diff % 3600000) / 60000);
-      const segs  = Math.floor((diff % 60000) / 1000);
-      if (dias > 0) {
-        el.textContent = `⏳ Oferta termina en ${dias}d ${hs}h ${mins}m`;
-      } else {
-        el.textContent = `⏳ Termina en ${hs}h ${mins}m ${segs}s`;
-      }
+      const dias = Math.floor(diff / 86400000);
+      const hs   = Math.floor((diff % 86400000) / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const segs = Math.floor((diff % 60000) / 1000);
+      el.textContent = dias > 0
+        ? `⏳ Oferta termina en ${dias}d ${hs}h ${mins}m`
+        : `⏳ Termina en ${hs}h ${mins}m ${segs}s`;
     });
   }
   actualizar();
@@ -857,4 +879,85 @@ function cerrarRemate() {
 
 function toggleRemateFields(checked) {
   document.getElementById('remate-fields').style.display = checked ? 'block' : 'none';
+}
+
+// ════════════════════════════════════════════════
+// ADMIN — REMATES
+// ════════════════════════════════════════════════
+async function cargarRematesAdmin() {
+  const lista = document.getElementById('admin-remates-list');
+  if (!lista) return;
+  lista.innerHTML = `<div class="loading-state"><div class="spinner"></div><p>Cargando remates...</p></div>`;
+
+  const snap = await db.collection('productos').where('esRemate','==',true).get();
+  const remates = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+
+  if (!remates.length) {
+    lista.innerHTML = `<div class="empty-state"><div class="empty-icon">🔨</div><p>No hay remates activos. Creá un producto con modo remate activado.</p></div>`;
+    return;
+  }
+
+  // For each remate, get top offers
+  const rematesHtml = await Promise.all(remates.map(async p => {
+    const ofSnap = await db.collection('remates').doc(p.id)
+      .collection('ofertas').orderBy('monto','desc').limit(5).get();
+    const ofertas = ofSnap.docs.map(d => d.data());
+    const hasta   = new Date(p.remateFin);
+    const activo  = hasta > new Date();
+    const statusClass = activo ? 'admin-remate-tag' : 'admin-oferta-expirada';
+    const statusLabel = activo ? `⏳ Activo — cierra <span class="admin-countdown" data-hasta="${p.remateFin}"></span>` : '⌛ Finalizado';
+
+    const ofertasHtml = ofertas.length
+      ? ofertas.map((o,i) => {
+          const emoji = i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+          const wa    = config.whatsapp || '5493548549097';
+          const msg   = encodeURIComponent(`🏆 Hola ${o.alias}, ganaste el remate de "${p.nombre}" con ${formatPrecio(o.monto,p.moneda)}. ¿Coordinamos?`);
+          const waBtn = i===0 && !activo ? `<a href="https://wa.me/${wa}?text=${msg}" target="_blank" class="btn-remate-wa" style="margin-top:6px;font-size:0.78rem;padding:6px 10px;">💬 Contactar ganador</a>` : '';
+          return `<div class="oferta-item ${i===0?'oferta-1er':''}">
+            <div class="oferta-rank">${emoji}</div>
+            <div class="oferta-info"><div class="oferta-alias">${esc(o.alias)}</div></div>
+            <div class="oferta-monto">${formatPrecio(o.monto,p.moneda)}</div>
+            ${waBtn}
+          </div>`;
+        }).join('')
+      : '<div class="remate-empty">Sin ofertas aún</div>';
+
+    return `
+      <div class="admin-item" style="flex-direction:column;align-items:stretch;gap:12px;">
+        <div style="display:flex;gap:14px;align-items:center;">
+          <div class="admin-item-img">
+            ${p.fotos&&p.fotos[0]?`<img src="${p.fotos[0]}" style="width:100%;height:100%;object-fit:cover">`:'📦'}
+          </div>
+          <div style="flex:1;">
+            <div class="admin-item-nombre">${esc(p.nombre)}</div>
+            <div class="admin-item-meta">Base: ${formatPrecio(p.precioBase||p.precio,p.moneda)}</div>
+            <div class="admin-oferta-tag ${statusClass}" style="margin-top:6px;">${statusLabel}</div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.8rem;color:var(--text3);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Tablero de ofertas</div>
+          ${ofertasHtml}
+        </div>
+      </div>`;
+  }));
+
+  lista.innerHTML = rematesHtml.join('');
+  iniciarCountdownsAdmin();
+}
+
+function iniciarCountdownsAdmin() {
+  function actualizar() {
+    document.querySelectorAll('.admin-countdown[data-hasta]').forEach(el => {
+      const hasta = new Date(el.dataset.hasta);
+      const diff  = hasta - new Date();
+      if (diff <= 0) { el.textContent = 'Finalizado'; return; }
+      const d = Math.floor(diff/86400000);
+      const h = Math.floor((diff%86400000)/3600000);
+      const m = Math.floor((diff%3600000)/60000);
+      const s = Math.floor((diff%60000)/1000);
+      el.textContent = d>0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m ${s}s`;
+    });
+  }
+  actualizar();
+  setInterval(actualizar, 1000);
 }

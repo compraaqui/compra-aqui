@@ -650,3 +650,78 @@ textarea { resize: vertical; }
   border-radius: 8px; padding: 8px 14px;
   margin-bottom: 20px;
 }
+
+/* ═══ REMATE / PUJA ═══ */
+.badge-remate {
+  position: absolute; top: 8px; left: 8px;
+  background: linear-gradient(135deg, #7c3aed, #8b5cf6);
+  color: #fff; font-size: 0.7rem; font-weight: 700;
+  padding: 3px 8px; border-radius: 6px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(139,92,246,0.45);
+  animation: pulse-remate 1.5s infinite;
+}
+@keyframes pulse-remate {
+  0%,100% { box-shadow: 0 2px 8px rgba(139,92,246,0.45); }
+  50%      { box-shadow: 0 2px 18px rgba(139,92,246,0.8); }
+}
+.remate-card-countdown {
+  font-size: 0.75rem !important;
+  padding: 3px 7px !important;
+}
+.remate-empty {
+  text-align:center; color:var(--text3);
+  padding: 30px 0; font-size:0.9rem;
+}
+
+/* Tablero de ofertas */
+.oferta-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: var(--radius);
+  margin-bottom: 8px; border: 1px solid var(--border2);
+  background: var(--bg3); transition: all 0.3s;
+  flex-wrap: wrap;
+}
+.oferta-1er {
+  background: rgba(251,191,36,0.08);
+  border-color: rgba(251,191,36,0.35);
+  box-shadow: 0 0 16px rgba(251,191,36,0.15);
+}
+.oferta-2do {
+  background: rgba(148,163,184,0.06);
+  border-color: rgba(148,163,184,0.25);
+}
+.oferta-3er {
+  background: rgba(180,120,60,0.06);
+  border-color: rgba(180,120,60,0.2);
+}
+.oferta-rank { font-size: 1.4rem; flex-shrink:0; width: 32px; text-align:center; }
+.oferta-info { flex: 1; min-width: 0; }
+.oferta-alias { font-weight: 600; font-size: 0.92rem; }
+.oferta-tiempo { font-size: 0.75rem; color: var(--text3); margin-top: 2px; }
+.oferta-monto {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1.1rem; font-weight: 700; color: var(--accent2);
+  flex-shrink: 0;
+}
+.badge-ganador {
+  background: rgba(251,191,36,0.2); color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.4);
+  font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+  font-weight: 700; margin-left: 6px;
+}
+.badge-mio {
+  background: rgba(99,102,241,0.15); color: var(--accent2);
+  border: 1px solid var(--border);
+  font-size: 0.7rem; padding: 2px 8px; border-radius: 4px;
+  margin-left: 6px;
+}
+.btn-remate-wa {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: linear-gradient(135deg,#059669,#10b981);
+  color: #fff; border: none; border-radius: 8px;
+  padding: 8px 14px; font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  margin-top: 8px; width: 100%;
+  justify-content: center;
+}

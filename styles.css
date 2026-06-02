@@ -571,6 +571,44 @@ textarea { resize: vertical; }
   .admin-item { flex-wrap: wrap; }
   .tienda-toolbar { flex-direction: column; }
   .select-filter { width: 100%; }
+
+  /* ── LETRAS MÁS GRANDES EN MÓVIL ── */
+  body { font-size: 17px; }
+  input, textarea, select { font-size: 1rem; padding: 14px 16px; }
+  .field-group label { font-size: 0.95rem; }
+  .field-hint { font-size: 0.88rem; }
+
+  .topbar-brand { font-size: 1.35rem; }
+  .topbar-user { font-size: 0.9rem; }
+  .badge-admin { font-size: 0.75rem; }
+
+  .tienda-hero h1 { font-size: 1.7rem; }
+  .tienda-hero p { font-size: 1.05rem; }
+
+  .producto-nombre { font-size: 1rem; }
+  .producto-precio { font-size: 1.05rem; }
+  .producto-meta { font-size: 0.88rem; }
+
+  .detalle-nombre { font-size: 1.6rem; }
+  .detalle-precio { font-size: 1.5rem; }
+  .spec-label { font-size: 0.82rem; }
+  .spec-value { font-size: 1rem; }
+  .detalle-desc { font-size: 1rem; line-height: 1.85; }
+
+  .btn-primary { font-size: 1rem; padding: 15px 20px; }
+  .btn-whatsapp { font-size: 1.05rem; padding: 18px 28px; }
+  .btn-ghost { font-size: 1rem; }
+  .tab-btn { font-size: 0.95rem; padding: 11px 18px; }
+
+  .metric-value { font-size: 1.9rem; }
+  .metric-label { font-size: 0.88rem; }
+
+  .admin-item-nombre { font-size: 1rem; }
+  .admin-item-meta { font-size: 0.88rem; }
+  .pill { font-size: 0.82rem; padding: 5px 12px; }
+
+  .btn-sm { font-size: 0.9rem; padding: 9px 16px; }
+  .alert { font-size: 0.95rem; }
 }
 @media (max-width: 380px) {
   .productos-grid { grid-template-columns: 1fr; }

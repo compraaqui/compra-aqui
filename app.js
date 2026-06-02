@@ -164,6 +164,25 @@ async function registerUser() {
 
 function logoutUser() { auth.signOut(); }
 
+
+// Prevent browser back from leaving the app
+window.addEventListener('popstate', function(e) {
+  const activeScreen = document.querySelector('.screen.active');
+  const id = activeScreen ? activeScreen.id : 'screen-tienda';
+  if (id === 'screen-login' || id === 'screen-register') return;
+  // Go to tienda instead of leaving
+  if (id === 'screen-tienda') {
+    history.pushState({screen: id}, '', location.href);
+    return;
+  }
+  // Go back one level
+  if (id === 'screen-detalle' || id === 'screen-remate') {
+    showScreen('screen-tienda');
+  } else if (id === 'screen-admin') {
+    showScreen('screen-tienda');
+  }
+});
+
 function mostrarError(el, msg) {
   el.textContent = '⚠️ ' + msg;
   el.classList.remove('hidden');
@@ -253,7 +272,9 @@ function renderProductosTienda(productos) {
     const imgHtml = p.fotos && p.fotos[0]
       ? `<img class="card-img" src="${p.fotos[0]}" alt="${esc(p.nombre)}" onerror="this.style.display='none'">`
       : `<div class="card-img-ph">📦</div>`;
-    const precioAntHtml = p.precioAnterior ? `<span class="precio-tachado">${formatPrecio(p.precioAnterior, p.moneda)}</span>` : '';
+    const precioAntHtml = p.precioAnterior ? `<span class="precio-tachado precio-tachado-rojo">${formatPrecio(p.precioAnterior, p.moneda)}</span>` : '';
+    const descPctCard = p.precioAnterior ? Math.round((1 - p.precio/p.precioAnterior)*100) : 0;
+    const descBadgeCard = descPctCard > 0 ? `<span class="card-desc-badge">-${descPctCard}%</span>` : '';
     const ofertaHtml = p.ofertaHasta && !p.vendido ? `<div class="oferta-countdown" data-hasta="${p.ofertaHasta}">⏳ ...</div>` : '';
     const isRemate = p.esRemate && !p.vendido;
     const clickFn  = isRemate ? `verRemate('${p.id}')` : `verDetalle('${p.id}')`;
@@ -274,8 +295,8 @@ function renderProductosTienda(productos) {
           ${remateCountdown}
           <div class="card-footer">
             <div>
-              ${precioAntHtml}
-              <div class="card-precio">${isRemate ? '💰 Precio base: ' : ''}${precio}</div>
+              <div style="display:flex;align-items:center;gap:6px;">${precioAntHtml}${descBadgeCard}</div>
+              <div class="card-precio">${isRemate ? '🔨 Base: ' : ''}${precio}</div>
             </div>
             <span class="semaforo ${semaforoClass}"></span>
           </div>
@@ -298,11 +319,20 @@ function verDetalle(id) {
   const waLink = `https://wa.me/${wa}?text=${msg}`;
   const waBtn  = config.btnwa || 'CONSULTAR POR WHATSAPP';
 
-  const fotosHtml = fotosActuales.length
-    ? `<div class="detalle-fotos-grid">${fotosActuales.map((f,i) =>
-        `<img class="detalle-foto" src="${f}" alt="" onclick="abrirModal(${i})" onerror="this.style.display='none'">`
-      ).join('')}</div>`
-    : `<div style="height:180px;background:var(--bg2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:3rem;margin-bottom:24px">📦</div>`;
+  const nFotos = fotosActuales.length;
+  let fotosHtml;
+  if (!nFotos) {
+    fotosHtml = `<div style="height:180px;background:var(--bg2);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:3rem;margin-bottom:24px">📦</div>`;
+  } else if (nFotos === 1) {
+    fotosHtml = `<div class="detalle-fotos-wrap detalle-fotos-1" style="margin-bottom:20px;">
+      <img class="detalle-foto-main" src="${fotosActuales[0]}" alt="" onclick="abrirModal(0)" onerror="this.style.display='none'">
+    </div>`;
+  } else {
+    const gridClass = nFotos === 2 ? 'detalle-fotos-2' : nFotos === 3 ? 'detalle-fotos-3' : 'detalle-fotos-grid';
+    fotosHtml = `<div class="detalle-fotos-wrap ${gridClass}" style="margin-bottom:20px;"><div class="detalle-grid">${fotosActuales.map((f,i) =>
+      `<img src="${f}" alt="" onclick="abrirModal(${i})" onerror="this.style.display='none'">`
+    ).join('')}</div></div>`;
+  }
 
   const specs = [
     p.categoria ? { l:'Categoría',    v: p.categoria } : null,
@@ -316,7 +346,7 @@ function verDetalle(id) {
   document.getElementById('detalle-contenido').innerHTML = `
     ${fotosHtml}
     <div class="detalle-nombre">${esc(p.nombre)}</div>
-    ${p.precioAnterior ? `<div class="detalle-precio-anterior">${formatPrecio(p.precioAnterior, p.moneda)}</div>` : ''}
+    ${p.precioAnterior ? `<div style="display:flex;align-items:center;gap:10px;"><div class="detalle-precio-anterior">${formatPrecio(p.precioAnterior, p.moneda)}</div><span class="detalle-desc-badge">-${Math.round((1-p.precio/p.precioAnterior)*100)}%</span></div>` : ''}
     <div class="detalle-precio">${formatPrecio(p.precio, p.moneda)}</div>
     ${p.ofertaHasta && !p.vendido ? `<div class="detalle-countdown" data-hasta="${p.ofertaHasta}">⏳ Cargando oferta...</div>` : ''}
     ${p.vendido ? '<span class="pill pill-danger" style="font-size:0.85rem;padding:6px 14px;margin-bottom:20px;display:inline-flex">🔴 VENDIDO</span>' : ''}
@@ -450,12 +480,19 @@ async function guardarProducto() {
   const esRemate      = document.getElementById('np-es-remate')?.checked || false;
   const remateFin     = val('np-remate-fin') || null;
   const precioBase    = val('np-precio-base') || null;
+  const cantidad  = val('np-cantidad') || null;
+  const condicion = val('np-condicion') || 'Usado';
+  const colorProd = val('np-color-prod') || val('np-color') || '';
+  const materialProd = val('np-material') || '';
   const producto = {
     nombre, descripcion, precio: Number(precio),
     precioAnterior: precioAnterior ? Number(precioAnterior) : null,
     ofertaHasta:    ofertaHasta || null,
     esRemate, remateFin,
     precioBase: precioBase ? Number(precioBase) : Number(precio),
+    cantidad: cantidad || null,
+    condicion,
+    colorProd, materialProd,
     moneda:    val('np-moneda') || 'ARS',
     categoria: val('np-categoria'),
     estado:    val('np-estado'),
@@ -619,6 +656,7 @@ async function guardarConfig() {
   const datos = {
     nombre:    val('cfg-nombre')    || 'Comprá Aquí',
     icono:     val('cfg-icono')     || '🏪',
+    logo:      val('cfg-logo')      || '',
     whatsapp:  wa,
     titulo:    val('cfg-titulo')    || 'Productos disponibles',
     subtitulo: val('cfg-subtitulo') || '',
@@ -632,9 +670,30 @@ async function guardarConfig() {
     await db.collection('config').doc('tienda').set(datos);
     config = datos;
     aplicarColor(datos.color);
+    aplicarLogo(datos);
     suc.textContent = '✅ Configuración guardada correctamente.';
     suc.classList.remove('hidden');
   } catch(e) { mostrarError(err, 'Error: ' + e.message); }
+}
+
+function aplicarLogo(cfg) {
+  // Update favicon
+  const favicon = document.getElementById('favicon-link');
+  if (favicon) {
+    if (cfg.logo) {
+      favicon.type = 'image/png';
+      favicon.href = cfg.logo;
+    } else {
+      favicon.type = 'image/svg+xml';
+      const emoji = cfg.icono || '🏪';
+      favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${emoji}</text></svg>`;
+    }
+  }
+  // Update OG tags for WhatsApp
+  const ogImg = document.getElementById('og-image');
+  if (ogImg && cfg.logo) ogImg.content = cfg.logo;
+  const ogTitle = document.getElementById('og-title');
+  if (ogTitle) ogTitle.content = cfg.nombre || 'Comprá Aquí';
 }
 
 // ════════════════════════════════════════════════

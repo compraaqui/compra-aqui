@@ -808,34 +808,36 @@ textarea { resize: vertical; }
   border-radius: var(--radius-lg); cursor: zoom-in;
   background: var(--bg2);
 }
-.detalle-fotos-2 .detalle-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
-}
-.detalle-fotos-2 .detalle-grid img { height: 300px; }
+.detalle-fotos-wrap { width: 100%; margin-bottom: 20px; }
 
-.detalle-fotos-3 .detalle-grid {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
-}
-.detalle-fotos-3 .detalle-grid img { height: 240px; }
-
+.detalle-fotos-2 .detalle-grid,
+.detalle-fotos-3 .detalle-grid,
 .detalle-fotos-grid .detalle-grid {
-  display: grid; grid-template-columns: repeat(2,1fr); gap: 8px;
+  display: grid;
+  width: 100%;
+  gap: 8px;
 }
-.detalle-fotos-grid .detalle-grid img { height: 240px; }
+.detalle-fotos-2 .detalle-grid    { grid-template-columns: 1fr 1fr; }
+.detalle-fotos-3 .detalle-grid    { grid-template-columns: 1fr 1fr 1fr; }
+.detalle-fotos-grid .detalle-grid { grid-template-columns: repeat(4, 1fr); }
+
+.detalle-fotos-2 .detalle-grid img    { height: 280px; }
+.detalle-fotos-3 .detalle-grid img    { height: 220px; }
+.detalle-fotos-grid .detalle-grid img { height: 180px; }
 
 .detalle-grid img {
   width: 100%; object-fit: cover;
   border-radius: var(--radius); cursor: zoom-in;
-  transition: transform 0.2s;
+  transition: transform 0.2s; display: block;
 }
 .detalle-grid img:hover { transform: scale(1.03); }
 
 @media (max-width: 640px) {
-  .detalle-fotos-2 .detalle-grid img { height: 180px; }
-  .detalle-fotos-3 .detalle-grid { grid-template-columns: 1fr 1fr; }
-  .detalle-fotos-3 .detalle-grid img { height: 160px; }
-  .detalle-fotos-grid .detalle-grid { grid-template-columns: repeat(2,1fr); }
-  .detalle-fotos-grid .detalle-grid img { height: 160px; }
+  .detalle-fotos-2 .detalle-grid img    { height: 160px; }
+  .detalle-fotos-3 .detalle-grid        { grid-template-columns: 1fr 1fr; }
+  .detalle-fotos-3 .detalle-grid img    { height: 150px; }
+  .detalle-fotos-grid .detalle-grid     { grid-template-columns: repeat(2, 1fr); }
+  .detalle-fotos-grid .detalle-grid img { height: 150px; }
 }
 
 /* Remate image full width */

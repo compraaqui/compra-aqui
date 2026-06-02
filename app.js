@@ -252,17 +252,24 @@ function renderProductosTienda(productos) {
     const imgHtml = p.fotos && p.fotos[0]
       ? `<img class="card-img" src="${p.fotos[0]}" alt="${esc(p.nombre)}" onerror="this.style.display='none'">`
       : `<div class="card-img-ph">📦</div>`;
+    const precioAntHtml = p.precioAnterior ? `<span class="precio-tachado">${formatPrecio(p.precioAnterior, p.moneda)}</span>` : '';
+    const ofertaHtml = p.ofertaHasta && !p.vendido ? `<div class="oferta-countdown" data-hasta="${p.ofertaHasta}">⏳ ...</div>` : '';
     return `
       <div class="producto-card" onclick="verDetalle('${p.id}')">
         <div class="card-img-wrap">
           ${imgHtml}
           <span class="card-badge ${badgeClass}">${badgeLabel}</span>
+          ${p.ofertaHasta && !p.vendido ? '<span class="badge-oferta">🔥 OFERTA</span>' : ''}
         </div>
         <div class="card-body">
           <div class="card-nombre">${esc(p.nombre)}</div>
           <div class="card-categoria">${p.categoria || '—'}</div>
+          ${ofertaHtml}
           <div class="card-footer">
-            <div class="card-precio">${precio}</div>
+            <div>
+              ${precioAntHtml}
+              <div class="card-precio">${precio}</div>
+            </div>
             <span class="semaforo ${semaforoClass}"></span>
           </div>
         </div>
@@ -302,7 +309,9 @@ function verDetalle(id) {
   document.getElementById('detalle-contenido').innerHTML = `
     ${fotosHtml}
     <div class="detalle-nombre">${esc(p.nombre)}</div>
+    ${p.precioAnterior ? `<div class="detalle-precio-anterior">${formatPrecio(p.precioAnterior, p.moneda)}</div>` : ''}
     <div class="detalle-precio">${formatPrecio(p.precio, p.moneda)}</div>
+    ${p.ofertaHasta && !p.vendido ? `<div class="detalle-countdown" data-hasta="${p.ofertaHasta}">⏳ Cargando oferta...</div>` : ''}
     ${p.vendido ? '<span class="pill pill-danger" style="font-size:0.85rem;padding:6px 14px;margin-bottom:20px;display:inline-flex">🔴 VENDIDO</span>' : ''}
     ${specs.length ? `<div class="detalle-specs">${specs.map(s=>`
       <div class="spec-card">
@@ -404,8 +413,12 @@ async function guardarProducto() {
   const fotos = [...document.querySelectorAll('.foto-input')]
     .map(i => i.value.trim()).filter(Boolean);
 
+  const precioAnterior = val('np-precio-anterior');
+  const ofertaHasta   = val('np-oferta-hasta');
   const producto = {
     nombre, descripcion, precio: Number(precio),
+    precioAnterior: precioAnterior ? Number(precioAnterior) : null,
+    ofertaHasta:    ofertaHasta || null,
     moneda:    val('np-moneda') || 'ARS',
     categoria: val('np-categoria'),
     estado:    val('np-estado'),
@@ -430,7 +443,7 @@ async function guardarProducto() {
 }
 
 function limpiarFormNuevo() {
-  ['np-nombre','np-descripcion','np-precio','np-categoria','np-medidas',
+  ['np-nombre','np-descripcion','np-precio','np-precio-anterior','np-oferta-hasta','np-categoria','np-medidas',
    'np-peso','np-estado','np-color','np-notas'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -460,6 +473,9 @@ function abrirEditar(id) {
   document.getElementById('edit-color').value       = p.color || '';
   document.getElementById('edit-notas').value       = p.notas || '';
   document.getElementById('edit-fotos').value       = (p.fotos || []).join('\n');
+  document.getElementById('edit-precio-anterior').value = p.precioAnterior || '';
+  const eoh = document.getElementById('edit-oferta-hasta');
+  if (eoh) eoh.value = p.ofertaHasta ? p.ofertaHasta.slice(0,16) : '';
   document.getElementById('edit-error').classList.add('hidden');
   document.getElementById('modal-editar').classList.remove('hidden');
 }
@@ -475,8 +491,12 @@ async function guardarEdicion() {
   if (!nombre || !descripcion || !precio) { mostrarError(err,'Nombre, descripción y precio son obligatorios.'); return; }
 
   const fotos = val('edit-fotos').split('\n').map(l=>l.trim()).filter(Boolean);
+  const editPrecioAnt = val('edit-precio-anterior');
+  const editOferta    = val('edit-oferta-hasta');
   const datos = {
     nombre, descripcion, precio: Number(precio),
+    precioAnterior: editPrecioAnt ? Number(editPrecioAnt) : null,
+    ofertaHasta:    editOferta || null,
     moneda:    val('edit-moneda') || 'ARS',
     categoria: val('edit-categoria'),
     estado:    val('edit-estado'),
@@ -602,3 +622,42 @@ function formatPrecio(precio, moneda) {
   const n = Number(precio).toLocaleString('es-AR');
   return moneda === 'USD' ? `USD ${n}` : `$ ${n}`;
 }
+
+// ════════════════════════════════════════════════
+// COUNTDOWN OFERTAS
+// ════════════════════════════════════════════════
+function iniciarCountdowns() {
+  function actualizar() {
+    document.querySelectorAll('[data-hasta]').forEach(el => {
+      const hasta = new Date(el.dataset.hasta);
+      const ahora = new Date();
+      const diff  = hasta - ahora;
+      if (diff <= 0) {
+        el.textContent = '⌛ Oferta expirada';
+        el.style.color = 'var(--text3)';
+        return;
+      }
+      const dias  = Math.floor(diff / 86400000);
+      const hs    = Math.floor((diff % 86400000) / 3600000);
+      const mins  = Math.floor((diff % 3600000) / 60000);
+      const segs  = Math.floor((diff % 60000) / 1000);
+      if (dias > 0) {
+        el.textContent = `⏳ Oferta termina en ${dias}d ${hs}h ${mins}m`;
+      } else {
+        el.textContent = `⏳ Termina en ${hs}h ${mins}m ${segs}s`;
+      }
+    });
+  }
+  actualizar();
+  setInterval(actualizar, 1000);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  iniciarCountdowns();
+  // Re-run after products load
+  const observer = new MutationObserver(() => iniciarCountdowns());
+  const grid = document.getElementById('productos-grid');
+  if (grid) observer.observe(grid, { childList: true });
+  const det = document.getElementById('detalle-contenido');
+  if (det) observer.observe(det, { childList: true });
+});

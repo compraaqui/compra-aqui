@@ -10,6 +10,15 @@
   <meta id="og-title" property="og:title" content="Comprá Aquí"/>
   <meta id="og-description" property="og:description" content="Productos a la venta"/>
   <meta id="og-image" property="og:image" content="https://res.cloudinary.com/ddfukywf8/image/upload/v1780371976/sofa_cama_sillon_grande_ir4dxc.png"/>
+  <meta property="og:image:width" content="1200"/>
+  <meta property="og:image:height" content="630"/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:url" content="https://compraaqui.github.io/compra-aqui/"/>
+  <link rel="manifest" href="data:application/json,{%22name%22:%22Compr%C3%A1+Aqu%C3%AD%22,%22short_name%22:%22ComprAqu%C3%AD%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23080c14%22,%22theme_color%22:%22%236366f1%22}"/>
+  <meta name="theme-color" content="#080c14"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <link id="favicon-link" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>"/>
 </head>
 <body>
@@ -403,7 +412,7 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
             </select>
           </div>
           <div class="field-group">
-            <label>Color / Material</label>
+            <label>Tipo <span style="color:var(--text3);font-size:0.78rem;">(ej: antigüedad, artesanal, electrónico...)</span></label>
             <input type="text" id="np-color" placeholder="Ej: Madera roble, tela gris"/>
           </div>
           <div class="field-group span2">
@@ -560,6 +569,24 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
           <label>⏳ Oferta hasta (opcional)</label>
           <input type="datetime-local" id="edit-oferta-hasta"/>
         </div>
+        <div class="field-group span2">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="checkbox" id="edit-es-remate" onchange="toggleEditRemateFields(this.checked)" style="width:18px;height:18px;accent-color:var(--accent)"/>
+            🔨 Modo REMATE / PUJA
+          </label>
+        </div>
+        <div id="edit-remate-fields" style="display:none;grid-column:span 2;">
+          <div class="form-grid">
+            <div class="field-group">
+              <label>💰 Precio base del remate</label>
+              <input type="number" id="edit-precio-base" placeholder="Mínimo aceptado"/>
+            </div>
+            <div class="field-group">
+              <label>🏁 Fecha y hora de cierre</label>
+              <input type="datetime-local" id="edit-remate-fin"/>
+            </div>
+          </div>
+        </div>
         <div class="field-group">
           <label>Categoría</label>
           <input type="text" id="edit-categoria"/>
@@ -592,7 +619,7 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
           </select>
         </div>
         <div class="field-group">
-          <label>Color / Material</label>
+          <label>Tipo <span style="color:var(--text3);font-size:0.78rem;">(ej: antigüedad, artesanal, electrónico...)</span></label>
           <input type="text" id="edit-color"/>
         </div>
         <div class="field-group span2">

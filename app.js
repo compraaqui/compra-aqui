@@ -78,10 +78,30 @@ async function cargarConfig() {
 // ════════════════════════════════════════════════
 // NAVEGACIÓN
 // ════════════════════════════════════════════════
+// ── Historia de pantallas para que el botón volver del sistema funcione ──
+const screenHistory = [];
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  window.scrollTo({ top:0, behavior:'smooth' });
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  screenHistory.push(id);
+
+  // Use replaceState for root screens, pushState for sub-screens
+  // This avoids creating extra history entries that lead to blank pages
+  if (id === 'screen-login' || id === 'screen-register') {
+    history.replaceState({ screen: id }, '', location.pathname);
+  } else if (id === 'screen-tienda' || id === 'screen-admin') {
+    // For main screens, replace so back from here goes to prev site or closes
+    history.replaceState({ screen: id }, '', location.pathname);
+    // But also push one extra so the back button triggers popstate instead of leaving
+    history.pushState({ screen: id, anchor: true }, '', location.pathname);
+  } else {
+    // Sub-screens: push so back returns to parent
+    history.pushState({ screen: id }, '', location.pathname);
+  }
 }
 
 function showTab(id, btn) {
@@ -165,22 +185,31 @@ async function registerUser() {
 function logoutUser() { auth.signOut(); }
 
 
-// Prevent browser back from leaving the app
+// Intercept browser/system back button — never leave the app
 window.addEventListener('popstate', function(e) {
-  const activeScreen = document.querySelector('.screen.active');
-  const id = activeScreen ? activeScreen.id : 'screen-tienda';
-  if (id === 'screen-login' || id === 'screen-register') return;
-  // Go to tienda instead of leaving
-  if (id === 'screen-tienda') {
-    history.pushState({screen: id}, '', location.href);
+  const active = document.querySelector('.screen.active');
+  const current = active ? active.id : 'screen-tienda';
+
+  // Don't intercept login/register
+  if (current === 'screen-login' || current === 'screen-register') return;
+
+  // Prevent leaving: always push back so there's always a state
+  let destino = 'screen-tienda';
+  if (current === 'screen-detalle' || current === 'screen-remate') {
+    destino = 'screen-tienda';
+  } else {
+    // Already at tienda/admin — just re-push to prevent leaving
+    history.pushState({ screen: current, anchor: true }, '', location.pathname);
     return;
   }
-  // Go back one level
-  if (id === 'screen-detalle' || id === 'screen-remate') {
-    showScreen('screen-tienda');
-  } else if (id === 'screen-admin') {
-    showScreen('screen-tienda');
-  }
+
+  // Navigate internally
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(destino);
+  if (el) el.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  screenHistory.push(destino);
+  history.pushState({ screen: destino, anchor: true }, '', location.pathname);
 });
 
 function mostrarError(el, msg) {
@@ -265,7 +294,8 @@ function renderProductosTienda(productos) {
     return;
   }
   grid.innerHTML = productos.map(p => {
-    const precio = formatPrecio(p.precio, p.moneda);
+    const precioMostrar = (p.esRemate && p.precioBase) ? p.precioBase : p.precio;
+    const precio = formatPrecio(precioMostrar, p.moneda);
     const semaforoClass = p.vendido ? 'semaforo-rojo' : 'semaforo-verde';
     const badgeClass    = p.vendido ? 'badge-vendido' : 'badge-disponible';
     const badgeLabel    = p.vendido ? 'VENDIDO' : 'DISPONIBLE';
@@ -296,7 +326,7 @@ function renderProductosTienda(productos) {
           <div class="card-footer">
             <div>
               <div style="display:flex;align-items:center;gap:6px;">${precioAntHtml}${descBadgeCard}</div>
-              <div class="card-precio">${isRemate ? '🔨 Base: ' : ''}${precio}</div>
+              ${isRemate ? `<div style="font-size:0.7rem;font-weight:700;color:#a78bfa;letter-spacing:1px;margin-bottom:2px;">🔨 💰 REMATE</div><div class="card-precio">Precio base: ${precio}</div>` : `<div class="card-precio">${precio}</div>`}
             </div>
             <span class="semaforo ${semaforoClass}"></span>
           </div>
@@ -550,6 +580,15 @@ function abrirEditar(id) {
   document.getElementById('edit-precio-anterior').value = p.precioAnterior || '';
   const eoh = document.getElementById('edit-oferta-hasta');
   if (eoh) eoh.value = p.ofertaHasta ? p.ofertaHasta.slice(0,16) : '';
+  const editEsRemate = document.getElementById('edit-es-remate');
+  if (editEsRemate) {
+    editEsRemate.checked = p.esRemate || false;
+    toggleEditRemateFields(p.esRemate || false);
+  }
+  const editPrecioBase = document.getElementById('edit-precio-base');
+  if (editPrecioBase) editPrecioBase.value = p.precioBase || '';
+  const editRemateFin = document.getElementById('edit-remate-fin');
+  if (editRemateFin) editRemateFin.value = p.remateFin ? p.remateFin.slice(0,16) : '';
   document.getElementById('edit-error').classList.add('hidden');
   document.getElementById('modal-editar').classList.remove('hidden');
 }
@@ -565,12 +604,18 @@ async function guardarEdicion() {
   if (!nombre || !descripcion || !precio) { mostrarError(err,'Nombre, descripción y precio son obligatorios.'); return; }
 
   const fotos = val('edit-fotos').split('\n').map(l=>l.trim()).filter(Boolean);
-  const editPrecioAnt = val('edit-precio-anterior');
-  const editOferta    = val('edit-oferta-hasta');
+  const editPrecioAnt  = val('edit-precio-anterior');
+  const editOferta     = val('edit-oferta-hasta');
+  const editEsRemate   = document.getElementById('edit-es-remate')?.checked || false;
+  const editRemateFin  = val('edit-remate-fin') || null;
+  const editPrecioBase = val('edit-precio-base') || null;
   const datos = {
     nombre, descripcion, precio: Number(precio),
     precioAnterior: editPrecioAnt ? Number(editPrecioAnt) : null,
     ofertaHasta:    editOferta || null,
+    esRemate: editEsRemate,
+    remateFin: editRemateFin,
+    precioBase: editPrecioBase ? Number(editPrecioBase) : Number(precio),
     moneda:    val('edit-moneda') || 'ARS',
     categoria: val('edit-categoria'),
     estado:    val('edit-estado'),
@@ -934,6 +979,11 @@ function cerrarRemate() {
   } else {
     showScreen('screen-tienda');
   }
+}
+
+function toggleEditRemateFields(checked) {
+  const el = document.getElementById('edit-remate-fields');
+  if (el) el.style.display = checked ? 'block' : 'none';
 }
 
 function toggleRemateFields(checked) {

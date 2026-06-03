@@ -35,7 +35,7 @@
   <div class="auth-container">
     <div class="auth-card glass">
       <div class="brand">
-        <span class="brand-icon">🏪</span>
+        <span class="brand-icon"></span>
         <div>
           <div class="brand-name">Comprá<span>Aquí</span></div>
           <div class="brand-sub">Marketplace privado</div>
@@ -71,7 +71,7 @@
   <div class="auth-container">
     <div class="auth-card glass">
       <div class="brand">
-        <span class="brand-icon">🏪</span>
+        <span class="brand-icon"></span>
         <div>
           <div class="brand-name">Comprá<span>Aquí</span></div>
           <div class="brand-sub">Crear cuenta</div>
@@ -119,7 +119,7 @@
 <div id="screen-tienda" class="screen">
   <header class="topbar">
     <div class="topbar-left">
-      <span class="brand-icon-sm">🏪</span>
+      <span class="brand-icon-sm"></span>
       <span class="topbar-brand">Comprá<span>Aquí</span></span>
     </div>
     <div class="topbar-right">
@@ -243,7 +243,7 @@
 <div id="screen-admin" class="screen">
   <header class="topbar">
     <div class="topbar-left">
-      <span class="brand-icon-sm">🏪</span>
+      <span class="brand-icon-sm"></span>
       <span class="topbar-brand">Comprá<span>Aquí</span> <span class="badge-admin">ADMIN</span></span>
     </div>
     <div class="topbar-right">
@@ -469,23 +469,11 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
           <div class="field-group">
             <label>Icono / Emoji de la tienda</label>
             <input type="text" id="cfg-icono" placeholder="🏪"/>
-            <div class="field-hint">Solo se usa si no tenés logo. Ej: 🏪 🛒 🏬</div>
           </div>
           <div class="field-group span2">
-            <label>🖼️ URL del logo — se aplica en: login, registro, topbar, favicon y WhatsApp</label>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <input type="text" id="cfg-logo" placeholder="https://res.cloudinary.com/..." style="flex:1;"
-                oninput="document.getElementById('logo-preview').src=this.value||'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='"/>
-              <img id="logo-preview" src="" alt="preview"
-                style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#ffffff15;border:1px solid #ffffff20;padding:4px;flex-shrink:0;"
-                onerror="this.style.display='none'" onload="this.style.display='block'"/>
-            </div>
-            <div class="field-hint">
-              📌 Cómo subir tu logo:
-              1. Entrá a <strong>cloudinary.com</strong> → Media Library → Upload
-              2. Subí tu imagen PNG
-              3. Copiá la URL y pegála acá
-            </div>
+            <label>🖼️ URL del logo (para WhatsApp y solapa del navegador)</label>
+            <input type="text" id="cfg-logo" placeholder="https://res.cloudinary.com/..."/>
+            <div class="field-hint">Subí tu logo a Cloudinary y pegá la URL acá. Se verá cuando compartas el link por WhatsApp.</div>
           </div>
           <div class="field-group">
             <label>Número de WhatsApp</label>

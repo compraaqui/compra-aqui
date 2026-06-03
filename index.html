@@ -14,20 +14,12 @@
   <meta property="og:image:height" content="630"/>
   <meta property="og:type" content="website"/>
   <meta property="og:url" content="https://compraaqui.github.io/compra-aqui/"/>
-  <!-- ── PWA ────────────────────────────────────────────
-       Para cambiar el ícono en el futuro:
-       1. Reemplazá icon-512.png e icon-192.png en GitHub
-       2. Cambiá CACHE_NAME en sw.js (ej: compraqui-v2)
-          para que los celulares descarguen el nuevo ícono
-  ──────────────────────────────────────────────────── -->
-  <link rel="manifest" href="manifest.json"/>
+  <link rel="manifest" href="data:application/json,{%22name%22:%22Compr%C3%A1+Aqu%C3%AD%22,%22short_name%22:%22ComprAqu%C3%AD%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23080c14%22,%22theme_color%22:%22%236366f1%22}"/>
   <meta name="theme-color" content="#080c14"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <link rel="apple-touch-icon" href="icon-192.png"/>
-  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png"/>
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png"/>
+  <link id="favicon-link" rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏪</text></svg>"/>
 </head>
 <body>
 
@@ -477,11 +469,23 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
           <div class="field-group">
             <label>Icono / Emoji de la tienda</label>
             <input type="text" id="cfg-icono" placeholder="🏪"/>
+            <div class="field-hint">Solo se usa si no tenés logo. Ej: 🏪 🛒 🏬</div>
           </div>
           <div class="field-group span2">
-            <label>🖼️ URL del logo (para WhatsApp y solapa del navegador)</label>
-            <input type="text" id="cfg-logo" placeholder="https://res.cloudinary.com/..."/>
-            <div class="field-hint">Subí tu logo a Cloudinary y pegá la URL acá. Se verá cuando compartas el link por WhatsApp.</div>
+            <label>🖼️ URL del logo — se aplica en: login, registro, topbar, favicon y WhatsApp</label>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <input type="text" id="cfg-logo" placeholder="https://res.cloudinary.com/..." style="flex:1;"
+                oninput="document.getElementById('logo-preview').src=this.value||'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='"/>
+              <img id="logo-preview" src="" alt="preview"
+                style="width:56px;height:56px;object-fit:contain;border-radius:10px;background:#ffffff15;border:1px solid #ffffff20;padding:4px;flex-shrink:0;"
+                onerror="this.style.display='none'" onload="this.style.display='block'"/>
+            </div>
+            <div class="field-hint">
+              📌 Cómo subir tu logo:
+              1. Entrá a <strong>cloudinary.com</strong> → Media Library → Upload
+              2. Subí tu imagen PNG
+              3. Copiá la URL y pegála acá
+            </div>
           </div>
           <div class="field-group">
             <label>Número de WhatsApp</label>
@@ -666,17 +670,6 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
     </div>
   </div>
 </div>
-
-<!-- ── Registro Service Worker (activa instalación PWA) ── -->
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(() => console.log('✅ PWA lista'))
-        .catch(e => console.log('SW error:', e));
-    });
-  }
-</script>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>

@@ -369,14 +369,14 @@ function verDetalle(id) {
   }
 
   const specs = [
-    p.cantidad  ? { l:'Cantidad',      v:p.cantidad }  : null,
     p.categoria ? { l:'Categoría',    v: p.categoria } : null,
     p.estado    ? { l:'Estado',       v: p.estado }    : null,
     p.medidas   ? { l:'Medidas',      v: p.medidas }   : null,
     p.peso      ? { l:'Peso',         v: p.peso+'kg' } : null,
     p.desarma   ? { l:'¿Se desarma?', v: p.desarma }   : null,
     p.color     ? { l:'Color/Material',v:p.color }     : null,
-    p.condicion ? { l:'Condición',     v:p.condicion } : null,
+	p.condicion ? { l:'Condición',     v:p.condicion } : null,
+    p.cantidad  ? { l:'Cantidad',      v:p.cantidad }  : null,
   ].filter(Boolean);
 
   document.getElementById('detalle-contenido').innerHTML = `
@@ -746,21 +746,33 @@ async function guardarConfig() {
 }
 
 function aplicarLogo(cfg) {
-  // Update favicon
+  const logo  = cfg.logo  || '';
+  const emoji = cfg.icono || '🏪';
+
+  // ── 1. Favicon (pestaña del navegador) ──────────────
   const favicon = document.getElementById('favicon-link');
   if (favicon) {
-    if (cfg.logo) {
+    if (logo) {
       favicon.type = 'image/png';
-      favicon.href = cfg.logo;
+      favicon.href = logo;
     } else {
       favicon.type = 'image/svg+xml';
-      const emoji = cfg.icono || '🏪';
       favicon.href = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${emoji}</text></svg>`;
     }
   }
-  // Update OG tags for WhatsApp
+
+  // ── 2. Todos los brand-icon en pantalla (login, registro, topbar) ──
+  document.querySelectorAll('.brand-icon, .brand-icon-sm').forEach(el => {
+    if (logo) {
+      el.innerHTML = '<img src="' + logo + '" alt="logo" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">';
+    } else {
+      el.textContent = emoji;
+    }
+  });
+
+  // ── 3. OG tags (imagen al compartir por WhatsApp/redes) ──
   const ogImg = document.getElementById('og-image');
-  if (ogImg && cfg.logo) ogImg.content = cfg.logo;
+  if (ogImg && logo) ogImg.content = logo;
   const ogTitle = document.getElementById('og-title');
   if (ogTitle) ogTitle.content = cfg.nombre || 'Comprá Aquí';
 }

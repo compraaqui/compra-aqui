@@ -58,6 +58,8 @@ async function cargarConfig() {
     const doc = await db.collection('config').doc('tienda').get();
     config = doc.exists ? doc.data() : {};
     aplicarColor(config.color || 'indigo');
+    // Aplicar logo e ícono en TODAS las pantallas (login, registro, topbar, favicon)
+    aplicarLogo(config);
     // Aplicar textos
     const titulo = config.titulo || 'Productos disponibles';
     const sub    = config.subtitulo || 'Encontrá lo que buscás y contactanos por WhatsApp';

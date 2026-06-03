@@ -424,8 +424,9 @@ async function cargarProductosAdmin() {
     return;
   }
   lista.innerHTML = productosCache.map(p => {
-    const pillClass  = p.vendido ? 'pill-danger' : p.esRemate ? 'pill-info' : 'pill-success';
-    const pillLabel  = p.vendido ? '🔴 Vendido'  : p.esRemate ? '🔨 Remate' : '🟢 Disponible';
+    const remateFinalizado = p.esRemate && p.remateFin && new Date(p.remateFin) < new Date();
+    const pillClass  = p.vendido ? 'pill-danger' : p.esRemate && !remateFinalizado ? 'pill-remate' : p.esRemate ? 'pill-info' : 'pill-success';
+    const pillLabel  = p.vendido ? '🔴 Vendido'  : p.esRemate && !remateFinalizado ? '🔨 En remate' : p.esRemate ? '⌛ Remate finalizado' : '🟢 Disponible';
     const imgHtml    = p.fotos && p.fotos[0]
       ? `<img src="${p.fotos[0]}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📦'">`
       : '📦';
@@ -580,6 +581,14 @@ function abrirEditar(id) {
   document.getElementById('edit-precio-anterior').value = p.precioAnterior || '';
   const eoh = document.getElementById('edit-oferta-hasta');
   if (eoh) eoh.value = p.ofertaHasta ? p.ofertaHasta.slice(0,16) : '';
+  const editCond = document.getElementById('edit-condicion');
+  if (editCond) editCond.value = p.condicion || 'Usado';
+  const editCant = document.getElementById('edit-cantidad');
+  if (editCant) editCant.value = p.cantidad || '';
+  const editColorProd = document.getElementById('edit-color-prod');
+  if (editColorProd) editColorProd.value = p.colorProd || '';
+  const editMaterial = document.getElementById('edit-material');
+  if (editMaterial) editMaterial.value = p.materialProd || '';
   const editEsRemate = document.getElementById('edit-es-remate');
   if (editEsRemate) {
     editEsRemate.checked = p.esRemate || false;
@@ -606,6 +615,10 @@ async function guardarEdicion() {
   const fotos = val('edit-fotos').split('\n').map(l=>l.trim()).filter(Boolean);
   const editPrecioAnt  = val('edit-precio-anterior');
   const editOferta     = val('edit-oferta-hasta');
+  const editCondicion  = val('edit-condicion') || 'Usado';
+  const editCantidad   = val('edit-cantidad') || null;
+  const editColorProd  = val('edit-color-prod') || '';
+  const editMaterial   = val('edit-material') || '';
   const editEsRemate   = document.getElementById('edit-es-remate')?.checked || false;
   const editRemateFin  = val('edit-remate-fin') || null;
   const editPrecioBase = val('edit-precio-base') || null;
@@ -616,6 +629,10 @@ async function guardarEdicion() {
     esRemate: editEsRemate,
     remateFin: editRemateFin,
     precioBase: editPrecioBase ? Number(editPrecioBase) : Number(precio),
+    condicion: editCondicion,
+    cantidad: editCantidad,
+    colorProd: editColorProd,
+    materialProd: editMaterial,
     moneda:    val('edit-moneda') || 'ARS',
     categoria: val('edit-categoria'),
     estado:    val('edit-estado'),

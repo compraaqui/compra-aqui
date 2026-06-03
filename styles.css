@@ -330,7 +330,8 @@ textarea { resize: vertical; }
 
 /* ═══ DETALLE ═══ */
 .detalle-wrap { max-width: 960px; margin: 0 auto; padding: 36px 24px 60px; }
-/* foto grid replaced below */.detalle-foto {
+.detalle-fotos-grid-OLD { display: none; }
+.detalle-foto {
   width: 100%; height: 190px; object-fit: cover;
   border-radius: var(--radius); cursor: pointer;
   border: 2px solid transparent; transition: all 0.2s;
@@ -807,6 +808,11 @@ textarea { resize: vertical; }
 .detalle-fotos-wrap {
   width: 100%;
   margin-bottom: 20px;
+  box-sizing: border-box;
+  display: block;
+}
+.detalle-fotos-wrap .detalle-grid {
+  width: 100%;
   box-sizing: border-box;
 }
 

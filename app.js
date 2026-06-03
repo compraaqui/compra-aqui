@@ -281,7 +281,11 @@ function filtrarProductos() {
   const fil   = productosCache.filter(p => {
     const matchQ   = !q   || p.nombre.toLowerCase().includes(q) || (p.descripcion||'').toLowerCase().includes(q);
     const matchCat = !cat || p.categoria === cat;
-    const matchEst = !est || (est === 'vendido' ? p.vendido : !p.vendido);
+    const matchEst = !est || 
+      (est === 'vendido'    ? p.vendido : 
+       est === 'remate'     ? (p.esRemate && !p.vendido) : 
+       est === 'disponible' ? (!p.vendido && !p.esRemate) : 
+       !p.vendido);
     return matchQ && matchCat && matchEst;
   });
   renderProductosTienda(fil);

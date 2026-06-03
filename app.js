@@ -375,6 +375,7 @@ function verDetalle(id) {
     p.peso      ? { l:'Peso',         v: p.peso+'kg' } : null,
     p.desarma   ? { l:'¿Se desarma?', v: p.desarma }   : null,
     p.color     ? { l:'Color/Material',v:p.color }     : null,
+    p.condicion ? { l:'Condición',     v:p.condicion } : null,
   ].filter(Boolean);
 
   document.getElementById('detalle-contenido').innerHTML = `

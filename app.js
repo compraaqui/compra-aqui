@@ -376,6 +376,7 @@ function verDetalle(id) {
     p.desarma   ? { l:'¿Se desarma?', v: p.desarma }   : null,
     p.color     ? { l:'Color/Material',v:p.color }     : null,
     p.condicion ? { l:'Condición',     v:p.condicion } : null,
+    p.cantidad  ? { l:'Cantidad',      v:p.cantidad }  : null,
   ].filter(Boolean);
 
   document.getElementById('detalle-contenido').innerHTML = `

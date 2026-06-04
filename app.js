@@ -58,8 +58,7 @@ async function cargarConfig() {
     const doc = await db.collection('config').doc('tienda').get();
     config = doc.exists ? doc.data() : {};
     aplicarColor(config.color || 'indigo');
-    // Aplicar logo e ícono en TODAS las pantallas (login, registro, topbar, favicon)
-    aplicarLogo(config);
+    aplicarLogo(config);  // aplica logo/ícono en login, topbar, favicon
     // Aplicar textos
     const titulo = config.titulo || 'Productos disponibles';
     const sub    = config.subtitulo || 'Encontrá lo que buscás y contactanos por WhatsApp';
@@ -706,7 +705,7 @@ async function cargarConfigForm() {
   const doc = await db.collection('config').doc('tienda').get();
   const c   = doc.exists ? doc.data() : {};
   setVal('cfg-nombre',    c.nombre    || 'Comprá Aquí');
-  setVal('cfg-icono',     c.icono     || '🏪');
+  setVal('cfg-icono',     c.icono     || '');
   setVal('cfg-whatsapp',  c.whatsapp  || '5493548549097');
   setVal('cfg-titulo',    c.titulo    || 'Productos disponibles');
   setVal('cfg-subtitulo', c.subtitulo || 'Encontrá lo que buscás y contactanos por WhatsApp');
@@ -751,7 +750,7 @@ function aplicarLogo(cfg) {
   const logo  = cfg.logo  || '';
   const emoji = cfg.icono || '🏪';
 
-  // ── 1. Favicon (pestaña del navegador) ──────────────
+  // 1. Favicon (pestaña del navegador)
   const favicon = document.getElementById('favicon-link');
   if (favicon) {
     if (logo) {
@@ -763,16 +762,21 @@ function aplicarLogo(cfg) {
     }
   }
 
-  // ── 2. Todos los brand-icon en pantalla (login, registro, topbar) ──
+  // 2. brand-icon en pantalla: login, registro, topbar — tamaño FIJO
   document.querySelectorAll('.brand-icon, .brand-icon-sm').forEach(el => {
     if (logo) {
-      el.innerHTML = '<img src="' + logo + '" alt="logo" style="width:100%;height:100%;object-fit:contain;border-radius:8px;">';
+      const esSm = el.classList.contains('brand-icon-sm');
+      const px = esSm ? '30' : '52';
+      const br = esSm ? '6' : '10';
+      el.innerHTML = `<img src="${logo}" alt="logo" width="${px}" height="${px}"
+        style="width:${px}px;height:${px}px;max-width:${px}px;max-height:${px}px;
+        object-fit:contain;border-radius:${br}px;display:block;">`;
     } else {
       el.textContent = emoji;
     }
   });
 
-  // ── 3. OG tags (imagen al compartir por WhatsApp/redes) ──
+  // 3. OG tags (WhatsApp/redes)
   const ogImg = document.getElementById('og-image');
   if (ogImg && logo) ogImg.content = logo;
   const ogTitle = document.getElementById('og-title');

@@ -1095,6 +1095,7 @@ async function cargarRematesAdmin() {
             <div class="oferta-info"><div class="oferta-alias">${esc(o.alias)}</div></div>
             <div class="oferta-monto">${formatPrecio(o.monto,p.moneda)}</div>
             ${waBtn}
+            <button class="btn-sm btn-sm-danger" style="margin-left:8px;flex-shrink:0;" onclick="event.stopPropagation();borrarOfertaRemate('${p.id}','${o.uid}','${esc(o.alias)}')" title="Borrar esta oferta">🗑️</button>
           </div>`;
         }).join('')
       : '<div class="remate-empty">Sin ofertas aún</div>';
@@ -1112,7 +1113,10 @@ async function cargarRematesAdmin() {
           </div>
         </div>
         <div>
-          <div style="font-size:0.8rem;color:var(--text3);font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Tablero de ofertas</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="font-size:0.8rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Tablero de ofertas</div>
+            ${ofertas.length ? `<button class="btn-sm btn-sm-danger" onclick="reiniciarTableroRemate('${p.id}','${esc(p.nombre)}')">🔄 Reiniciar tablero</button>` : ''}
+          </div>
           ${ofertasHtml}
         </div>
       </div>`;
@@ -1120,6 +1124,31 @@ async function cargarRematesAdmin() {
 
   lista.innerHTML = rematesHtml.join('');
   iniciarCountdownsAdmin();
+}
+
+async function borrarOfertaRemate(productoId, uid, alias) {
+  if (!confirm(`¿Borrar la oferta de ${alias}? Esta acción no se puede deshacer.`)) return;
+  try {
+    await db.collection('remates').doc(productoId).collection('ofertas').doc(uid).delete();
+    cargarRematesAdmin();
+  } catch(e) {
+    alert('Error al borrar la oferta: ' + e.message);
+  }
+}
+
+async function reiniciarTableroRemate(productoId, nombreProducto) {
+  if (!confirm(`¿Borrar TODAS las ofertas del remate "${nombreProducto}"? Esta acción no se puede deshacer y el remate quedará como si nadie hubiera ofertado.`)) return;
+  try {
+    const ofSnap = await db.collection('remates').doc(productoId).collection('ofertas').get();
+    // Firestore no permite borrar una subcolección entera de una sola vez,
+    // hay que borrar documento por documento en un batch.
+    const batch = db.batch();
+    ofSnap.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    cargarRematesAdmin();
+  } catch(e) {
+    alert('Error al reiniciar el tablero: ' + e.message);
+  }
 }
 
 function iniciarCountdownsAdmin() {

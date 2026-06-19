@@ -317,8 +317,10 @@ function renderProductosTienda(productos) {
     const imgHtml = p.fotos && p.fotos[0]
       ? `<img class="card-img" src="${p.fotos[0]}" alt="${esc(p.nombre)}" onerror="this.style.display='none'">`
       : `<div class="card-img-ph">📦</div>`;
+    // precioAnterior funciona como "precio de referencia / valor de mercado" tanto
+    // para ofertas normales como para remates: siempre se compara contra precioMostrar.
     const precioAntHtml = p.precioAnterior ? `<span class="precio-tachado precio-tachado-rojo">${formatPrecio(p.precioAnterior, p.moneda)}</span>` : '';
-    const descPctCard = p.precioAnterior ? Math.round((1 - p.precio/p.precioAnterior)*100) : 0;
+    const descPctCard = p.precioAnterior ? Math.round((1 - precioMostrar/p.precioAnterior)*100) : 0;
     const descBadgeCard = descPctCard > 0 ? `<span class="card-desc-badge">-${descPctCard}%</span>` : '';
     const ofertaHtml = p.ofertaHasta && !p.vendido ? `<div class="oferta-countdown" data-hasta="${p.ofertaHasta}">⏳ ...</div>` : '';
     const isRemate = p.esRemate && !p.vendido;
@@ -877,17 +879,31 @@ function renderPantallaRemate(p, aliasUsuario) {
   const ahora = new Date();
   const terminado = hasta <= ahora;
   const wa = config.whatsapp || '5493548549097';
+  const precioBaseActual = p.precioBase || p.precio;
 
   document.getElementById('remate-titulo').textContent = p.nombre;
   document.getElementById('remate-img').src = (p.fotos && p.fotos[0]) || '';
   document.getElementById('remate-img').style.display = (p.fotos && p.fotos[0]) ? 'block' : 'none';
-  document.getElementById('remate-base').textContent = formatPrecio(p.precioBase || p.precio, p.moneda);
+  document.getElementById('remate-base').textContent = formatPrecio(precioBaseActual, p.moneda);
   document.getElementById('remate-countdown').dataset.hasta = p.remateFin;
   document.getElementById('remate-producto-id').value = p.id;
   document.getElementById('remate-producto-nombre').value = p.nombre;
   document.getElementById('remate-moneda').value = p.moneda || 'ARS';
   document.getElementById('remate-wa').href = '#';
   document.getElementById('remate-alias-display').textContent = aliasUsuario;
+
+  // Precio de mercado tachado, para generar urgencia comparando contra el precio base del remate.
+  // Usa p.precioAnterior como "valor de mercado / referencia" (mismo campo que en ofertas normales).
+  const valorMercadoEl = document.getElementById('remate-valor-mercado');
+  if (valorMercadoEl) {
+    if (p.precioAnterior && p.precioAnterior > precioBaseActual) {
+      const ahorroPct = Math.round((1 - precioBaseActual / p.precioAnterior) * 100);
+      valorMercadoEl.innerHTML = `<span style="display:flex;align-items:center;gap:6px;"><span class="precio-tachado precio-tachado-rojo" style="display:inline;">${formatPrecio(p.precioAnterior, p.moneda)}</span> <span class="card-desc-badge">-${ahorroPct}%</span></span>`;
+      valorMercadoEl.style.display = 'block';
+    } else {
+      valorMercadoEl.style.display = 'none';
+    }
+  }
 
   const inputSection = document.getElementById('remate-input-section');
   const ganadorSection = document.getElementById('remate-ganador-section');

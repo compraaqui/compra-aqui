@@ -822,10 +822,12 @@ async function guardarProducto() {
 
   try {
     await db.collection('productos').add(producto);
-    suc.textContent = '✅ Producto publicado correctamente.';
-    suc.classList.remove('hidden');
     limpiarFormNuevo();
     cargarMetricas();
+    // Ir al tab Productos para ver el producto recién publicado
+    const btnProductos = document.querySelector('.tab-btn[onclick*="tab-productos"]');
+    if (btnProductos) btnProductos.click();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   } catch(e) {
     mostrarError(err, 'Error al guardar: ' + e.message);
   }

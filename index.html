@@ -694,8 +694,18 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
           <textarea id="edit-notas" rows="2"></textarea>
         </div>
         <div class="field-group span2">
-          <label>Fotos (un link por línea)</label>
-          <textarea id="edit-fotos" rows="4" placeholder="https://res.cloudinary.com/..."></textarea>
+          <label>📷 Fotos del producto</label>
+          <div id="edit-upload-area" class="upload-area" onclick="document.getElementById('edit-file-input').click()" ondragover="event.preventDefault();this.classList.add('upload-area-hover')" ondragleave="this.classList.remove('upload-area-hover')" ondrop="event.preventDefault();this.classList.remove('upload-area-hover');subirFotos(event.dataTransfer.files,'edit')">
+            <input type="file" id="edit-file-input" multiple accept="image/*" style="display:none" onchange="subirFotos(this.files,'edit')"/>
+            <div class="upload-icon">📷</div>
+            <div class="upload-label">Tocá aquí o arrastrá fotos nuevas</div>
+            <div class="upload-sub">Las fotos actuales se mantienen — estas se agregan</div>
+          </div>
+          <div id="edit-fotos-preview" class="fotos-preview" style="margin-bottom:8px;"></div>
+          <!-- Fotos existentes que se mantienen -->
+          <div id="edit-fotos-existentes" class="fotos-preview" style="margin-bottom:6px;"></div>
+          <textarea id="edit-fotos" rows="2" placeholder="O pegá links de Cloudinary (uno por línea)" style="font-size:0.78rem;opacity:0.7;"></textarea>
+          <span class="field-hint">Las fotos subidas arriba se agregan a los links del campo de texto.</span>
         </div>
       </div>
     </div>

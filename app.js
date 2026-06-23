@@ -751,6 +751,19 @@ async function subirFotos(files, prefijo) {
   if (area) area.style.borderColor = '';
 }
 
+function eliminarFotoExistente(url) {
+  // Quitar miniatura de fotos existentes en el modal editar
+  const editExist = document.getElementById('edit-fotos-existentes');
+  if (!editExist) return;
+  const thumb = editExist.querySelector(`[data-url="${url}"]`);
+  if (thumb) thumb.remove();
+  // También quitar del textarea por consistencia
+  const textarea = document.getElementById('edit-fotos');
+  if (textarea) {
+    textarea.value = textarea.value.split('\n').filter(l => l.trim() !== url).join('\n');
+  }
+}
+
 function eliminarFotoSubida(url, prefijo) {
   fotosSubidas[prefijo] = (fotosSubidas[prefijo] || []).filter(u => u !== url);
   // Redibujar previews
@@ -850,7 +863,20 @@ function abrirEditar(id) {
   document.getElementById('edit-desarma').value     = p.desarma || '';
   document.getElementById('edit-color').value       = p.color || '';
   document.getElementById('edit-notas').value       = p.notas || '';
-  document.getElementById('edit-fotos').value       = (p.fotos || []).join('\n');
+  // Fotos: mostrar existentes como miniaturas y resetear uploader
+  document.getElementById('edit-fotos').value = (p.fotos || []).join('\n');
+  fotosSubidas['edit'] = [];
+  const editPreview = document.getElementById('edit-fotos-preview');
+  if (editPreview) editPreview.innerHTML = '';
+  const editExist = document.getElementById('edit-fotos-existentes');
+  if (editExist) {
+    editExist.innerHTML = (p.fotos || []).map(url => `
+      <div class="foto-thumb" style="position:relative;" data-url="${url}">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" loading="lazy"/>
+        <button onclick="eliminarFotoExistente('${url}')"
+          style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:20px;padding:0;">✕</button>
+      </div>`).join('');
+  }
   document.getElementById('edit-precio-anterior').value = p.precioAnterior || '';
   const eoh = document.getElementById('edit-oferta-hasta');
   if (eoh) eoh.value = p.ofertaHasta ? p.ofertaHasta.slice(0,16) : '';
@@ -885,7 +911,14 @@ async function guardarEdicion() {
   err.classList.add('hidden');
   if (!nombre || !descripcion || !precio) { mostrarError(err,'Nombre, descripción y precio son obligatorios.'); return; }
 
-  const fotos = val('edit-fotos').split('\n').map(l=>l.trim()).filter(Boolean);
+  // Combinar: fotos existentes que no se borraron + nuevas subidas + links del textarea
+  const fotosExistentesEl = document.getElementById('edit-fotos-existentes');
+  const fotosExistentes = fotosExistentesEl
+    ? [...fotosExistentesEl.querySelectorAll('[data-url]')].map(el => el.dataset.url)
+    : [];
+  const fotosNuevas   = fotosSubidas['edit'] || [];
+  const fotosManual   = val('edit-fotos').split('\n').map(l=>l.trim()).filter(Boolean);
+  const fotos = [...new Set([...fotosExistentes, ...fotosNuevas, ...fotosManual])];
   const editPrecioAnt  = val('edit-precio-anterior');
   const editOferta     = val('edit-oferta-hasta');
   const editCondicion  = val('edit-condicion') || 'Usado';

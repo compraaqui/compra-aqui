@@ -93,6 +93,11 @@
         <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres"/>
       </div>
       <div class="field-group">
+        <label>📱 WhatsApp / Teléfono</label>
+        <input type="tel" id="reg-telefono" placeholder="Ej: 3548549097" inputmode="numeric"/>
+        <span class="field-hint">Sin el 0 ni el 15. Solo lo usamos para coordinar si ganás un remate. No es obligatorio pero es muy recomendado.</span>
+      </div>
+      <div class="field-group">
         <label>🏷️ Tu alias en los remates</label>
         <div style="display:flex;gap:8px;align-items:center;">
           <input type="text" id="reg-alias" placeholder="Ej: Juan4823" maxlength="20" style="flex:1;" oninput="normalizarAlias(this)"/>
@@ -103,6 +108,21 @@
       <button class="btn-primary" onclick="registerUser()">CREAR MI CUENTA</button>
       <div class="auth-divider">¿Ya tenés cuenta?</div>
       <button class="btn-ghost" onclick="showScreen('screen-login')">INICIAR SESIÓN</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     PANTALLA: PENDIENTE DE ACTIVACIÓN
+══════════════════════════════════════════ -->
+<div id="screen-pending" class="screen">
+  <div class="auth-bg"></div>
+  <div class="auth-container">
+    <div class="auth-card glass" style="text-align:center">
+      <div style="font-size:3rem;margin-bottom:16px">⏳</div>
+      <div class="brand-name" style="color:var(--warning)">Cuenta en revisión</div>
+      <p style="color:var(--text2);margin-top:12px;line-height:1.6">Tu cuenta fue creada correctamente.<br>El administrador la activará en breve para que puedas ingresar.</p>
+      <button class="btn-ghost" onclick="logoutUser()" style="margin-top:28px">SALIR</button>
     </div>
   </div>
 </div>
@@ -230,6 +250,7 @@
     </div>
 
     <!-- Ganador (cuando termina) -->
+    <!-- Para el ADMIN: muestra quién ganó y botón para contactar al ganador -->
     <div id="remate-ganador-section" style="display:none;" class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);">
       <div style="text-align:center;padding:10px 0;">
         <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
@@ -237,6 +258,15 @@
         <div id="remate-ganador-nombre" style="font-size:1.4rem;font-weight:700;color:#34d399;margin-bottom:4px;"></div>
         <div id="remate-ganador-monto" style="font-size:1.1rem;color:var(--text2);margin-bottom:14px;"></div>
         <a id="remate-wa" href="#" target="_blank" class="btn-whatsapp" style="display:inline-flex;width:auto;padding:12px 24px;">💬 Contactar ganador por WhatsApp</a>
+      </div>
+    </div>
+    <!-- Para el GANADOR: mensaje de felicitación y botón para contactar al vendedor -->
+    <div id="remate-soy-ganador-section" style="display:none;" class="glass" style="border-radius:var(--radius-lg);padding:20px;margin-bottom:16px;background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.3);">
+      <div style="text-align:center;padding:10px 0;">
+        <div style="font-size:2.5rem;margin-bottom:8px;">🥇</div>
+        <div style="font-size:1.2rem;font-weight:700;color:#34d399;margin-bottom:6px;">¡Ganaste el remate!</div>
+        <div id="remate-soy-ganador-monto" style="font-size:1rem;color:var(--text2);margin-bottom:14px;"></div>
+        <a id="remate-wa-ganador" href="#" target="_blank" class="btn-whatsapp" style="display:inline-flex;width:auto;padding:12px 24px;">💬 Contactar al vendedor</a>
       </div>
     </div>
 
@@ -435,14 +465,17 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
 
         <!-- FOTOS -->
         <div class="fotos-section">
-          <label class="section-label">📷 Fotos (links de Cloudinary)</label>
-          <p class="field-hint">Subí tus fotos a Cloudinary y pegá los links acá</p>
-          <div id="fotos-inputs" class="fotos-inputs">
-            <input type="text" class="foto-input" placeholder="Link foto 1"/>
-            <input type="text" class="foto-input" placeholder="Link foto 2"/>
-            <input type="text" class="foto-input" placeholder="Link foto 3"/>
+          <label class="section-label">📷 Fotos del producto</label>
+          <p class="field-hint">Seleccioná una o varias fotos desde tu dispositivo. Se suben automáticamente a Cloudinary.</p>
+          <div id="np-upload-area" class="upload-area" onclick="document.getElementById('np-file-input').click()" ondragover="event.preventDefault();this.classList.add('upload-area-hover')" ondragleave="this.classList.remove('upload-area-hover')" ondrop="event.preventDefault();this.classList.remove('upload-area-hover');subirFotos(event.dataTransfer.files,'np')">
+            <input type="file" id="np-file-input" multiple accept="image/*" style="display:none" onchange="subirFotos(this.files,'np')"/>
+            <div class="upload-icon">📷</div>
+            <div class="upload-label">Tocá aquí o arrastrá fotos</div>
+            <div class="upload-sub">JPG, PNG, WEBP — hasta 10MB por foto</div>
           </div>
-          <button class="btn-ghost-sm" onclick="agregarFotoInput()">+ Agregar otro link</button>
+          <div id="np-fotos-preview" class="fotos-preview"></div>
+          <!-- Links ocultos que se van llenando con las URLs de Cloudinary -->
+          <div id="fotos-inputs" style="display:none"></div>
         </div>
 
         <div id="np-error" class="alert alert-danger hidden"></div>

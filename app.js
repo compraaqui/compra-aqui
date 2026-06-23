@@ -139,6 +139,10 @@ auth.onAuthStateChanged(async (user) => {
     showScreen('screen-blocked'); return;
   }
 
+  if (userDoc.exists && userDoc.data().pendiente === true) {
+    showScreen('screen-pending'); return;
+  }
+
   const nombre = userDoc.exists ? userDoc.data().nombre : (user.displayName || user.email.split('@')[0]);
   await userRef.set({
     uid: user.uid, email: user.email,
@@ -249,15 +253,19 @@ async function registerUser() {
   // Leer alias del campo visible; si quedó vacío, generar uno ahora
   const aliasInput = (document.getElementById('reg-alias')?.value || '').trim();
   const alias = aliasInput || generarAlias(name);
+  const telefono = (document.getElementById('reg-telefono')?.value || '').trim().replace(/\D/g,'');
 
   try {
     const cred = await auth.createUserWithEmailAndPassword(email, pass);
     await db.collection('usuarios').doc(cred.user.uid).set({
       uid: cred.user.uid, email, nombre: name, alias,
-      bloqueado: false, fechaRegistro: new Date().toISOString()
+      telefono: telefono || '',
+      bloqueado: false, pendiente: true, fechaRegistro: new Date().toISOString()
     });
-    suc.textContent = '✅ ¡Cuenta creada! Ingresando...';
+    suc.textContent = '✅ ¡Cuenta creada! El administrador la activará pronto para que puedas ingresar.';
     suc.classList.remove('hidden');
+    // Cerrar sesión: no puede entrar hasta ser activado por el admin
+    setTimeout(() => auth.signOut(), 2500);
   } catch(e) { mostrarError(err, traducirError(e.code)); }
 }
 
@@ -687,6 +695,73 @@ function agregarFotoInput() {
   c.appendChild(i);
 }
 
+// ── Uploader Cloudinary ─────────────────────────────────────────────────────
+const CLOUD_NAME   = 'ddfukywf8';
+const UPLOAD_PRESET = 'compra_aqui'; // preset unsigned en tu Cloudinary
+
+// fotosSubidas: array de URLs resultantes, separado por prefijo (np = nuevo producto, edit = editar)
+const fotosSubidas = { np: [], edit: [] };
+
+async function subirFotos(files, prefijo) {
+  if (!files || !files.length) return;
+  const preview  = document.getElementById(`${prefijo}-fotos-preview`);
+  const area     = document.getElementById(`${prefijo}-upload-area`);
+  if (area) area.style.borderColor = 'var(--accent)';
+
+  for (const file of Array.from(files)) {
+    // Mostrar placeholder de carga
+    const tmpId = 'tmp-' + Date.now() + Math.random().toString(36).slice(2);
+    if (preview) {
+      preview.insertAdjacentHTML('beforeend',
+        `<div id="${tmpId}" class="foto-thumb foto-thumb-loading">⏳</div>`);
+    }
+
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('upload_preset', UPLOAD_PRESET);
+      fd.append('folder', 'compraaqui/productos');
+
+      const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method:'POST', body: fd });
+      const data = await res.json();
+
+      if (data.secure_url) {
+        fotosSubidas[prefijo] = fotosSubidas[prefijo] || [];
+        fotosSubidas[prefijo].push(data.secure_url);
+
+        // Reemplazar placeholder con miniatura real
+        const tmpEl = document.getElementById(tmpId);
+        if (tmpEl) {
+          tmpEl.outerHTML = `
+            <div class="foto-thumb" style="position:relative;">
+              <img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" loading="lazy"/>
+              <button onclick="eliminarFotoSubida('${data.secure_url}','${prefijo}')" 
+                style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:20px;padding:0;">✕</button>
+            </div>`;
+        }
+      } else {
+        const tmpEl = document.getElementById(tmpId);
+        if (tmpEl) tmpEl.outerHTML = `<div class="foto-thumb foto-thumb-error" title="${data.error?.message||'Error'}">❌</div>`;
+      }
+    } catch(e) {
+      const tmpEl = document.getElementById(tmpId);
+      if (tmpEl) tmpEl.outerHTML = `<div class="foto-thumb foto-thumb-error" title="${e.message}">❌</div>`;
+    }
+  }
+  if (area) area.style.borderColor = '';
+}
+
+function eliminarFotoSubida(url, prefijo) {
+  fotosSubidas[prefijo] = (fotosSubidas[prefijo] || []).filter(u => u !== url);
+  // Redibujar previews
+  const preview = document.getElementById(`${prefijo}-fotos-preview`);
+  if (!preview) return;
+  preview.querySelectorAll('.foto-thumb img').forEach(img => {
+    if (img.src === url) img.closest('.foto-thumb').remove();
+  });
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 async function guardarProducto() {
   const nombre      = val('np-nombre');
   const descripcion = val('np-descripcion');
@@ -699,8 +774,8 @@ async function guardarProducto() {
     mostrarError(err, 'Nombre, descripción y precio son obligatorios.'); return;
   }
 
-  const fotos = [...document.querySelectorAll('.foto-input')]
-    .map(i => i.value.trim()).filter(Boolean);
+  // Leer fotos subidas a Cloudinary (uploader nuevo) o links manuales como fallback
+  const fotos = (fotosSubidas['np'] || []).filter(Boolean);
 
   const precioAnterior = val('np-precio-anterior');
   const ofertaHasta   = val('np-oferta-hasta');
@@ -753,8 +828,10 @@ function limpiarFormNuevo() {
   const msel = document.getElementById('np-moneda');
   if (dsel) dsel.value = '';
   if (msel) msel.value = 'ARS';
-  document.getElementById('fotos-inputs').innerHTML =
-    ['1','2','3'].map(n=>`<input type="text" class="foto-input" placeholder="Link foto ${n}"/>`).join('');
+  // Resetear uploader
+  fotosSubidas['np'] = [];
+  const npPreview = document.getElementById('np-fotos-preview');
+  if (npPreview) npPreview.innerHTML = '';
 }
 
 // ═══ EDITAR ═══
@@ -859,20 +936,29 @@ async function cargarUsuariosAdmin() {
     lista.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>No hay usuarios registrados aún.</p></div>`;
     return;
   }
+  // Ordenar: pendientes primero, luego activos, bloqueados al final
+  users.sort((a, b) => {
+    const orden = v => v.pendiente ? 0 : v.bloqueado ? 2 : 1;
+    return orden(a) - orden(b);
+  });
+
   lista.innerHTML = users.map(u => {
-    const bloq = u.bloqueado;
-    const pClass = bloq ? 'pill-danger' : 'pill-success';
-    const pLabel = bloq ? '🔴 Bloqueado' : '🟢 Activo';
-    const fecha  = u.fechaRegistro ? new Date(u.fechaRegistro).toLocaleDateString('es-AR') : '—';
+    const bloq     = u.bloqueado;
+    const pendiente = u.pendiente && !bloq;
+    const pClass   = bloq ? 'pill-danger' : pendiente ? 'pill-warning' : 'pill-success';
+    const pLabel   = bloq ? '🔴 Bloqueado' : pendiente ? '⏳ Pendiente de activación' : '🟢 Activo';
+    const fecha    = u.fechaRegistro ? new Date(u.fechaRegistro).toLocaleDateString('es-AR') : '—';
+    const alias    = u.alias ? ` · Alias: <strong>${esc(u.alias)}</strong>` : '';
     return `
-      <div class="admin-item">
-        <div class="user-avatar">👤</div>
+      <div class="admin-item" style="${pendiente ? 'border-color:rgba(245,158,11,0.4);background:rgba(245,158,11,0.04);' : ''}">
+        <div class="user-avatar">${pendiente ? '🔔' : bloq ? '🚫' : '👤'}</div>
         <div class="admin-item-info">
           <div class="admin-item-nombre">${esc(u.nombre||'Sin nombre')}</div>
-          <div class="admin-item-meta">${esc(u.email)} · Registrado: ${fecha}</div>
+          <div class="admin-item-meta">${esc(u.email)}${alias} · Registrado: ${fecha}</div>
           <span class="pill ${pClass}" style="margin-top:6px">${pLabel}</span>
         </div>
         <div class="admin-item-actions">
+          ${pendiente ? `<button class="btn-sm btn-sm-success" onclick="activarUsuario('${u.uid}')">✅ Activar</button>` : ''}
           <button class="btn-sm ${bloq?'btn-sm-success':'btn-sm-danger'}" onclick="toggleBloqueo('${u.uid}',${bloq})">
             ${bloq?'🔓 Desbloquear':'🔒 Bloquear'}
           </button>
@@ -883,6 +969,12 @@ async function cargarUsuariosAdmin() {
 
 async function toggleBloqueo(uid, bloqueado) {
   await db.collection('usuarios').doc(uid).update({ bloqueado: !bloqueado });
+  cargarUsuariosAdmin();
+  cargarMetricas();
+}
+
+async function activarUsuario(uid) {
+  await db.collection('usuarios').doc(uid).update({ pendiente: false });
   cargarUsuariosAdmin();
   cargarMetricas();
 }
@@ -1168,14 +1260,36 @@ function renderOfertas(ofertas, productoId) {
       </div>`;
   }).join('');
 
-  // If ended and I'm winner, show contact button for admin too
-  if (terminado && ofertas.length && currentUser.email === ADMIN_EMAIL) {
+  // Sección ganador: solo visible para el admin o para el propio ganador
+  const secAdmin   = document.getElementById('remate-ganador-section');
+  const secGanador = document.getElementById('remate-soy-ganador-section');
+  if (secAdmin)   secAdmin.style.display   = 'none';
+  if (secGanador) secGanador.style.display = 'none';
+
+  if (terminado && ofertas.length) {
     const ganador = ofertas[0];
-    const msg = encodeURIComponent(`🏆 Hola ${ganador.alias}, ganaste el remate de "${p.nombre}" con ${formatPrecio(ganador.monto, moneda)}. ¿Coordinamos la entrega?`);
-    document.getElementById('remate-wa').href = `https://wa.me/${wa}?text=${msg}`;
-    document.getElementById('remate-ganador-nombre').textContent = ganador.alias;
-    document.getElementById('remate-ganador-monto').textContent = formatPrecio(ganador.monto, moneda);
-    document.getElementById('remate-ganador-section').style.display = 'block';
+    const esAdmin    = currentUser.email === ADMIN_EMAIL;
+    const soyGanador = ganador.uid === currentUser.uid;
+
+    if (esAdmin) {
+      // Admin: ve quién ganó y puede contactarlo
+      // Intentar usar el teléfono propio del ganador si lo registró
+      const ganadorDoc = await db.collection('usuarios').doc(ganador.uid).get();
+      const ganadorTel = ganadorDoc.exists ? (ganadorDoc.data().telefono || '') : '';
+      const waGanador  = ganadorTel ? `54${ganadorTel}` : wa; // si tiene tel propio, lo usamos; sino el WA del admin
+      const msgAdmin = encodeURIComponent(`🏆 Hola ${ganador.alias}, ganaste el remate de "${p.nombre}" con ${formatPrecio(ganador.monto, moneda)}. ¿Coordinamos la entrega?`);
+      document.getElementById('remate-wa').href = `https://wa.me/${waGanador}?text=${msgAdmin}`;
+      document.getElementById('remate-ganador-nombre').textContent = ganador.alias;
+      document.getElementById('remate-ganador-monto').textContent = formatPrecio(ganador.monto, moneda);
+      if (secAdmin) secAdmin.style.display = 'block';
+    } else if (soyGanador) {
+      // Ganador: ve felicitación y puede contactar al vendedor
+      const msgGan = encodeURIComponent(`🏆 ¡Gané el remate de "${p.nombre}"! Mi oferta fue ${formatPrecio(ganador.monto, moneda)}. ¿Cómo coordinamos la entrega?`);
+      document.getElementById('remate-wa-ganador').href = `https://wa.me/${wa}?text=${msgGan}`;
+      document.getElementById('remate-soy-ganador-monto').textContent = `Tu oferta ganadora: ${formatPrecio(ganador.monto, moneda)}`;
+      if (secGanador) secGanador.style.display = 'block';
+    }
+    // Resto de usuarios: no ven ninguna sección especial
   }
 }
 
@@ -1217,9 +1331,10 @@ async function hacerOferta() {
     return;
   }
 
-  // Get alias
+  // Get alias — si no tiene alias guardado, generar uno desde el nombre
   const userDoc = await db.collection('usuarios').doc(currentUser.uid).get();
-  const alias = userDoc.data()?.alias || userDoc.data()?.nombre || 'Anónimo';
+  const uData = userDoc.data() || {};
+  const alias = uData.alias || generarAlias(uData.nombre || currentUser.email.split('@')[0]);
 
   try {
     // Use uid as doc id so each user has only one offer (always updates to highest)

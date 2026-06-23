@@ -999,13 +999,16 @@ textarea { resize: vertical; }
 
 /* ═══ BADGE ESTADO PERSONALIZADO ═══ */
 .badge-estado {
+  position: absolute;
+  bottom: 10px; right: 10px;
   display: inline-block;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  line-height: 1.4;
+  letter-spacing: 0.5px;
+  backdrop-filter: blur(4px);
+  z-index: 2;
 }
 
 .badge-color-btn {

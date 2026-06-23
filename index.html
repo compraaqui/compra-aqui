@@ -695,7 +695,7 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
         </div>
         <div class="field-group span2">
           <label>📷 Fotos del producto</label>
-          <div id="edit-upload-area" class="upload-area" onclick="document.getElementById('edit-file-input').click()" ondragover="event.preventDefault();this.classList.add('upload-area-hover')" ondragleave="this.classList.remove('upload-area-hover')" ondrop="event.preventDefault();this.classList.remove('upload-area-hover');subirFotos(event.dataTransfer.files,'edit')">
+          <div id="edit-upload-area" class="upload-area" onclick="event.stopPropagation();document.getElementById('edit-file-input').click()" ondragover="event.preventDefault();this.classList.add('upload-area-hover')" ondragleave="this.classList.remove('upload-area-hover')" ondrop="event.preventDefault();this.classList.remove('upload-area-hover');subirFotos(event.dataTransfer.files,'edit')">
             <input type="file" id="edit-file-input" multiple accept="image/*" style="display:none" onchange="subirFotos(this.files,'edit')"/>
             <div class="upload-icon">📷</div>
             <div class="upload-label">Tocá aquí o arrastrá fotos nuevas</div>

@@ -722,30 +722,40 @@ async function subirFotos(files, prefijo) {
       fd.append('upload_preset', UPLOAD_PRESET);
       fd.append('folder', 'compraaqui/productos');
 
-      const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, { method:'POST', body: fd });
+      // Timeout de 30 segundos para no quedar colgado
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), 30000);
+
+      const res  = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+        method: 'POST', body: fd, signal: controller.signal
+      });
+      clearTimeout(timeoutId);
       const data = await res.json();
 
       if (data.secure_url) {
         fotosSubidas[prefijo] = fotosSubidas[prefijo] || [];
         fotosSubidas[prefijo].push(data.secure_url);
 
-        // Reemplazar placeholder con miniatura real
         const tmpEl = document.getElementById(tmpId);
         if (tmpEl) {
           tmpEl.outerHTML = `
             <div class="foto-thumb" style="position:relative;">
               <img src="${data.secure_url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" loading="lazy"/>
-              <button onclick="eliminarFotoSubida('${data.secure_url}','${prefijo}')" 
+              <button onclick="event.stopPropagation();eliminarFotoSubida('${data.secure_url}','${prefijo}')"
                 style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:20px;padding:0;">✕</button>
             </div>`;
         }
       } else {
+        const msg = data.error?.message || 'Error Cloudinary';
+        console.error('Cloudinary error:', data);
         const tmpEl = document.getElementById(tmpId);
-        if (tmpEl) tmpEl.outerHTML = `<div class="foto-thumb foto-thumb-error" title="${data.error?.message||'Error'}">❌</div>`;
+        if (tmpEl) tmpEl.outerHTML = `<div class="foto-thumb foto-thumb-error" style="font-size:0.6rem;padding:4px;color:#f87171;word-break:break-word;" title="${msg}">❌ ${msg}</div>`;
       }
     } catch(e) {
+      console.error('Upload error:', e);
+      const msg = e.name === 'AbortError' ? 'Tiempo agotado — reintentá' : e.message;
       const tmpEl = document.getElementById(tmpId);
-      if (tmpEl) tmpEl.outerHTML = `<div class="foto-thumb foto-thumb-error" title="${e.message}">❌</div>`;
+      if (tmpEl) tmpEl.outerHTML = `<div class="foto-thumb foto-thumb-error" style="font-size:0.6rem;padding:4px;color:#f87171;word-break:break-word;" title="${msg}">❌ ${msg}</div>`;
     }
   }
   if (area) area.style.borderColor = '';
@@ -874,8 +884,9 @@ function abrirEditar(id) {
   if (editExist) {
     editExist.innerHTML = (p.fotos || []).map(url => `
       <div class="foto-thumb" style="position:relative;" data-url="${url}">
-        <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" loading="lazy"/>
-        <button onclick="eliminarFotoExistente('${url}')"
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" loading="lazy"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='none';this.closest('.foto-thumb').innerHTML+='<span style=\'font-size:0.6rem;color:#f87171;padding:2px;display:block;text-align:center;\'>URL inválida</span>'"/>
+        <button onclick="event.stopPropagation();eliminarFotoExistente('${url}')"
           style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:20px;padding:0;">✕</button>
       </div>`).join('');
   }

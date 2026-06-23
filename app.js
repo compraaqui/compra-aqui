@@ -462,6 +462,29 @@ function renderProductosTienda(productos) {
 // ════════════════════════════════════════════════
 // DETALLE PRODUCTO
 // ════════════════════════════════════════════════
+// ── Ver producto como cliente (desde admin) ──────────────────────────────────
+function verProductoComoCliente(id) {
+  const p = productosCache.find(x => x.id === id);
+  if (!p) return;
+  // Marcar que venimos del admin para que el botón Volver regrese al admin
+  sessionStorage.setItem('verDesdeAdmin', '1');
+  // Abrir en nueva pestaña también
+  const url = window.location.href.split('?')[0] + '?preview=' + id;
+  // Mostrar el detalle en la app actual (opción A)
+  verDetalle(id);
+  // Cambiar el botón Volver para que regrese al admin
+  const btnVolver = document.querySelector('#screen-detalle .btn-back');
+  if (btnVolver) {
+    btnVolver.onclick = () => {
+      sessionStorage.removeItem('verDesdeAdmin');
+      showScreen('screen-admin');
+      // Restaurar para clientes normales
+      btnVolver.onclick = () => showScreen('screen-tienda');
+    };
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 function verDetalle(id) {
   const p = productosCache.find(x => x.id === id);
   if (!p) return;
@@ -591,6 +614,7 @@ async function cargarProductosAdmin() {
           <span class="pill ${pillClass}" style="margin-top:6px">${pillLabel}</span>
         </div>
         <div class="admin-item-actions">
+          <button class="btn-sm btn-sm-info" onclick="verProductoComoCliente('${p.id}')">👁 Ver</button>
           <button class="btn-sm btn-sm-primary" onclick="abrirEditar('${p.id}')">✏️ Editar</button>
           <button class="btn-sm btn-sm-warning" onclick="toggleVendido('${p.id}',${p.vendido})">${p.vendido?'↩ Disponible':'✅ Vendido'}</button>
           <button class="btn-sm btn-sm-danger" onclick="eliminarProducto('${p.id}')">🗑️ Eliminar</button>
@@ -1005,6 +1029,7 @@ async function cargarUsuariosAdmin() {
         </div>
         <div class="admin-item-actions">
           ${pendiente ? `<button class="btn-sm btn-sm-success" onclick="activarUsuario('${u.uid}')">✅ Activar</button>` : ''}
+          <button class="btn-sm btn-sm-primary" onclick="abrirEditarUsuario('${u.uid}')">✏️ Editar</button>
           <button class="btn-sm ${bloq?'btn-sm-success':'btn-sm-danger'}" onclick="toggleBloqueo('${u.uid}',${bloq})">
             ${bloq?'🔓 Desbloquear':'🔒 Bloquear'}
           </button>
@@ -1012,6 +1037,56 @@ async function cargarUsuariosAdmin() {
       </div>`;
   }).join('');
 }
+
+// ── Editar usuario desde admin ───────────────────────────────────────────────
+async function abrirEditarUsuario(uid) {
+  const doc = await db.collection('usuarios').doc(uid).get();
+  if (!doc.exists) return;
+  const u = doc.data();
+  document.getElementById('eu-uid').value      = uid;
+  document.getElementById('eu-nombre').value   = u.nombre   || '';
+  document.getElementById('eu-alias').value    = u.alias    || '';
+  document.getElementById('eu-telefono').value = u.telefono || '';
+  const sel = document.getElementById('eu-pendiente');
+  if (u.bloqueado)      sel.value = 'bloqueado';
+  else if (u.pendiente) sel.value = 'pendiente';
+  else                  sel.value = 'activo';
+  document.getElementById('eu-error').classList.add('hidden');
+  document.getElementById('modal-usuario').classList.remove('hidden');
+}
+
+function cerrarModalUsuario() {
+  document.getElementById('modal-usuario').classList.add('hidden');
+}
+
+async function guardarEdicionUsuario() {
+  const uid      = document.getElementById('eu-uid').value;
+  const nombre   = document.getElementById('eu-nombre').value.trim();
+  const alias    = document.getElementById('eu-alias').value.trim();
+  const telefono = document.getElementById('eu-telefono').value.trim().replace(/\D/g,'');
+  const estado   = document.getElementById('eu-pendiente').value;
+  const err      = document.getElementById('eu-error');
+  err.classList.add('hidden');
+
+  if (!nombre) { err.textContent = 'El nombre no puede estar vacío.'; err.classList.remove('hidden'); return; }
+  if (!alias)  { err.textContent = 'El alias no puede estar vacío.'; err.classList.remove('hidden'); return; }
+
+  try {
+    await db.collection('usuarios').doc(uid).update({
+      nombre,
+      alias,
+      telefono: telefono || '',
+      bloqueado: estado === 'bloqueado',
+      pendiente: estado === 'pendiente',
+    });
+    cerrarModalUsuario();
+    cargarUsuariosAdmin();
+  } catch(e) {
+    err.textContent = 'Error: ' + e.message;
+    err.classList.remove('hidden');
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function toggleBloqueo(uid, bloqueado) {
   await db.collection('usuarios').doc(uid).update({ bloqueado: !bloqueado });

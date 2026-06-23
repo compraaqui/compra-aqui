@@ -581,6 +581,46 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
 </div>
 
 <!-- MODAL EDITAR PRODUCTO -->
+<!-- ══════ MODAL EDITAR USUARIO ══════ -->
+<div id="modal-usuario" class="modal hidden" onclick="cerrarModalUsuario()">
+  <div class="modal-inner" onclick="event.stopPropagation()" style="max-width:480px;">
+    <div class="modal-form-header">
+      <h3>✏️ Editar usuario</h3>
+      <button class="modal-close" onclick="cerrarModalUsuario()">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <input type="hidden" id="eu-uid"/>
+      <div class="field-group">
+        <label>Nombre</label>
+        <input type="text" id="eu-nombre" placeholder="Nombre completo"/>
+      </div>
+      <div class="field-group">
+        <label>🏷️ Alias (en remates)</label>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <input type="text" id="eu-alias" placeholder="Ej: Juan4823" maxlength="20" style="flex:1;"/>
+          <button type="button" onclick="document.getElementById('eu-alias').value=generarAlias(document.getElementById('eu-nombre').value)" style="flex-shrink:0;background:var(--bg4);border:1px solid var(--border2);color:var(--text2);border-radius:var(--radius);padding:12px 14px;cursor:pointer;font-size:1rem;">🔄</button>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>📱 WhatsApp / Teléfono</label>
+        <input type="tel" id="eu-telefono" placeholder="Ej: 3548549097" inputmode="numeric"/>
+      </div>
+      <div class="field-group">
+        <label>Estado</label>
+        <select id="eu-pendiente">
+          <option value="activo">🟢 Activo</option>
+          <option value="pendiente">⏳ Pendiente de activación</option>
+          <option value="bloqueado">🔴 Bloqueado</option>
+        </select>
+      </div>
+      <div id="eu-error" class="alert alert-danger hidden"></div>
+    </div>
+    <div class="modal-form-footer">
+      <button class="btn-primary" onclick="guardarEdicionUsuario()">GUARDAR CAMBIOS</button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-editar" class="modal hidden" onclick="cerrarModalEditar()">
   <div class="modal-inner modal-form" onclick="event.stopPropagation()">
     <div class="modal-form-header">

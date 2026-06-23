@@ -973,10 +973,34 @@ async function toggleBloqueo(uid, bloqueado) {
   cargarMetricas();
 }
 
+// El usuario en screen-pending puede verificar si ya fue activado sin recargar
+async function verificarActivacion() {
+  const user = auth.currentUser;
+  if (!user) { showScreen('screen-login'); return; }
+  const userDoc = await db.collection('usuarios').doc(user.uid).get();
+  if (userDoc.exists && userDoc.data().pendiente === true) {
+    // Sigue pendiente
+    const card = document.querySelector('#screen-pending .auth-card p');
+    if (card) {
+      card.innerHTML = 'Todavía no fuiste activado.<br>Avisale al administrador e intentá de nuevo en unos minutos.';
+    }
+  } else {
+    // Ya fue activado — recargar flujo
+    window.location.reload();
+  }
+}
+
 async function activarUsuario(uid) {
   await db.collection('usuarios').doc(uid).update({ pendiente: false });
   cargarUsuariosAdmin();
   cargarMetricas();
+  // Mostrar aviso al admin
+  const suc = document.getElementById('admin-usuarios-msg');
+  if (suc) {
+    suc.textContent = '✅ Usuario activado. Pedile que recargue la página o vuelva a ingresar.';
+    suc.style.display = 'block';
+    setTimeout(() => { suc.style.display = 'none'; }, 5000);
+  }
 }
 
 // ════════════════════════════════════════════════

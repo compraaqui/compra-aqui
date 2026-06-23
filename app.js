@@ -154,6 +154,14 @@ auth.onAuthStateChanged(async (user) => {
   const nd = document.getElementById('user-name-display');
   if (nd) nd.textContent = nombre;
 
+  // Mostrar nombre en header admin
+  const headerNombre = document.getElementById('admin-nombre-header');
+  if (headerNombre) {
+    const adminDoc = await db.collection('usuarios').doc(user.uid).get();
+    const adminNombre = adminDoc.exists ? adminDoc.data().nombre : 'Admin';
+    headerNombre.textContent = adminNombre;
+  }
+
   if (user.email === ADMIN_EMAIL) {
     await cargarMetricas();
     await cargarProductosAdmin();
@@ -417,9 +425,14 @@ function renderProductosTienda(productos) {
   grid.innerHTML = productos.map(p => {
     const precioMostrar = (p.esRemate && p.precioBase) ? p.precioBase : p.precio;
     const precio = formatPrecio(precioMostrar, p.moneda);
-    const semaforoClass = p.vendido ? 'semaforo-rojo' : 'semaforo-verde';
-    const badgeClass    = p.vendido ? 'badge-vendido' : 'badge-disponible';
-    const badgeLabel    = p.vendido ? 'VENDIDO' : 'DISPONIBLE';
+    const remateFin2    = p.esRemate && p.remateFin && new Date(p.remateFin) < new Date();
+    const esVendidoReal = p.vendido || remateFin2;
+    const semaforoClass = esVendidoReal ? 'semaforo-rojo' : 'semaforo-verde';
+    // Badge personalizado o defaults
+    const badgeTexto    = p.badgeTexto || (esVendidoReal ? 'VENDIDO' : 'DISPONIBLE');
+    const badgeFondo    = p.badgeFondo || (esVendidoReal ? '#ef4444' : '#22c55e');
+    const badgeColor    = p.badgeColor || '#ffffff';
+    const badgeHtml     = `<span class="badge-estado" style="background:${badgeFondo};color:${badgeColor}">${badgeTexto}</span>`;
     const imgHtml = p.fotos && p.fotos[0]
       ? `<img class="card-img" src="${p.fotos[0]}" alt="${esc(p.nombre)}" onerror="this.style.display='none'">`
       : `<div class="card-img-ph">📦</div>`;
@@ -437,7 +450,7 @@ function renderProductosTienda(productos) {
       <div class="producto-card" onclick="${clickFn}">
         <div class="card-img-wrap">
           ${imgHtml}
-          <span class="card-badge ${badgeClass}">${badgeLabel}</span>
+          ${badgeHtml}
           ${p.ofertaHasta && !p.vendido && !isRemate ? '<span class="badge-oferta">🔥 OFERTA</span>' : ''}
           ${remateBadge}
         </div>
@@ -576,6 +589,9 @@ async function cargarProductosAdmin() {
     const remateFinalizado = p.esRemate && p.remateFin && new Date(p.remateFin) < new Date();
     const pillClass  = p.vendido ? 'pill-danger' : p.esRemate && !remateFinalizado ? 'pill-remate' : p.esRemate ? 'pill-info' : 'pill-success';
     const pillLabel  = p.vendido ? '🔴 Vendido'  : p.esRemate && !remateFinalizado ? '🔨 En remate' : p.esRemate ? '⌛ Remate finalizado' : '🟢 Disponible';
+    // Badge personalizado para mostrar en admin también
+    const admBadgeTxt = p.badgeTexto || (p.vendido ? 'VENDIDO' : null);
+    const admBadgeHtml = admBadgeTxt ? `<span style="background:${p.badgeFondo||'#ef4444'};color:${p.badgeColor||'#fff'};padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;margin-left:6px;">${admBadgeTxt}</span>` : '';
     const imgHtml    = p.fotos && p.fotos[0]
       ? `<img src="${p.fotos[0]}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.textContent='📦'">`
       : '📦';
@@ -617,6 +633,7 @@ async function cargarProductosAdmin() {
           <button class="btn-sm btn-sm-info" onclick="verProductoComoCliente('${p.id}')">👁 Ver</button>
           <button class="btn-sm btn-sm-primary" onclick="abrirEditar('${p.id}')">✏️ Editar</button>
           <button class="btn-sm btn-sm-warning" onclick="toggleVendido('${p.id}',${p.vendido})">${p.vendido?'↩ Disponible':'✅ Vendido'}</button>
+          <button class="btn-sm btn-sm-badge" onclick="abrirModalBadge('${p.id}')">🏷️ Etiqueta</button>
           <button class="btn-sm btn-sm-danger" onclick="eliminarProducto('${p.id}')">🗑️ Eliminar</button>
         </div>
       </div>`;
@@ -704,6 +721,82 @@ async function toggleVendido(id, actual) {
   await db.collection('productos').doc(id).update({ vendido: !actual });
   cargarProductosAdmin();
 }
+
+async function eliminarUsuario(uid, nombre) {
+  if (!confirm(`¿Seguro que querés borrar al usuario "${nombre}"? Esta acción no se puede deshacer.`)) return;
+  await db.collection('usuarios').doc(uid).delete();
+  cargarUsuariosAdmin();
+  cargarMetricas();
+}
+
+// ── Badges / Etiquetas personalizadas ────────────────────────────────────────
+function abrirModalBadge(productoId) {
+  document.getElementById('badge-producto-id').value = productoId;
+  // Cargar valores actuales del producto
+  const p = productosCache.find(x => x.id === productoId);
+  const texto = p?.badgeTexto || 'DISPONIBLE';
+  const fondo = p?.badgeFondo || '#22c55e';
+  const color = p?.badgeColor || '#ffffff';
+  document.getElementById('badge-texto').value       = texto;
+  document.getElementById('badge-color-fondo').value = fondo;
+  document.getElementById('badge-color-texto').value = color;
+  actualizarPreviewBadge();
+  // Listeners para preview en tiempo real
+  document.getElementById('badge-texto').oninput        = actualizarPreviewBadge;
+  document.getElementById('badge-color-fondo').oninput  = actualizarPreviewBadge;
+  document.getElementById('badge-color-texto').oninput  = actualizarPreviewBadge;
+  document.getElementById('modal-badge').classList.remove('hidden');
+}
+
+function cerrarModalBadge() {
+  document.getElementById('modal-badge').classList.add('hidden');
+}
+
+function seleccionarColorBadge(fondo, texto) {
+  document.getElementById('badge-color-fondo').value = fondo;
+  document.getElementById('badge-color-texto').value = texto;
+  actualizarPreviewBadge();
+}
+
+function actualizarPreviewBadge() {
+  const texto = document.getElementById('badge-texto').value || 'DISPONIBLE';
+  const fondo = document.getElementById('badge-color-fondo').value;
+  const color = document.getElementById('badge-color-texto').value;
+  const prev  = document.getElementById('badge-preview');
+  if (prev) {
+    prev.textContent         = texto.toUpperCase();
+    prev.style.background    = fondo;
+    prev.style.color         = color;
+  }
+}
+
+async function guardarBadge() {
+  const id    = document.getElementById('badge-producto-id').value;
+  const texto = document.getElementById('badge-texto').value.trim().toUpperCase();
+  const fondo = document.getElementById('badge-color-fondo').value;
+  const color = document.getElementById('badge-color-texto').value;
+  if (!texto) return;
+  const esVendido = texto === 'VENDIDO';
+  await db.collection('productos').doc(id).update({
+    badgeTexto: texto, badgeFondo: fondo, badgeColor: color,
+    vendido: esVendido
+  });
+  cerrarModalBadge();
+  cargarProductosAdmin();
+  cargarProductosTienda();
+}
+
+async function quitarBadge() {
+  const id = document.getElementById('badge-producto-id').value;
+  await db.collection('productos').doc(id).update({
+    badgeTexto: 'DISPONIBLE', badgeFondo: '#22c55e', badgeColor: '#ffffff',
+    vendido: false
+  });
+  cerrarModalBadge();
+  cargarProductosAdmin();
+  cargarProductosTienda();
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 async function eliminarProducto(id) {
   if (!confirm('¿Seguro que querés eliminar este producto? Esta acción no se puede deshacer.')) return;
@@ -1033,6 +1126,7 @@ async function cargarUsuariosAdmin() {
           <button class="btn-sm ${bloq?'btn-sm-success':'btn-sm-danger'}" onclick="toggleBloqueo('${u.uid}',${bloq})">
             ${bloq?'🔓 Desbloquear':'🔒 Bloquear'}
           </button>
+          <button class="btn-sm btn-sm-danger" onclick="eliminarUsuario('${u.uid}','${esc(u.nombre||u.email)}')">🗑️ Borrar</button>
         </div>
       </div>`;
   }).join('');
@@ -1415,6 +1509,14 @@ async function renderOfertas(ofertas, productoId) {
     const ganador = ofertas[0];
     const esAdmin    = currentUser.email === ADMIN_EMAIL;
     const soyGanador = ganador.uid === currentUser.uid;
+
+    // Marcar el producto como vendido automáticamente si el remate terminó
+    if (esAdmin && !p.vendido) {
+      db.collection('productos').doc(productoId).update({
+        vendido: true,
+        badgeTexto: 'VENDIDO', badgeFondo: '#ef4444', badgeColor: '#ffffff'
+      }).catch(() => {});
+    }
 
     if (esAdmin) {
       // Admin: ve quién ganó y puede contactarlo

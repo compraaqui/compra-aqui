@@ -287,7 +287,8 @@
   <header class="topbar">
     <div class="topbar-left">
       <span class="brand-icon-sm"></span>
-      <span class="topbar-brand">Comprá<span>Aquí</span> <span class="badge-admin">ADMIN</span></span>
+      <span class="topbar-brand">Comprá<span>Aquí</span></span>
+      <span id="admin-nombre-header" class="badge-admin" style="margin-left:8px;font-size:0.75rem;"></span>
     </div>
     <div class="topbar-right">
       <button class="btn-icon" onclick="logoutUser()" title="Salir">
@@ -752,6 +753,51 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
     <div class="modal-form-footer">
       <div id="edit-error" class="alert alert-danger hidden"></div>
       <button class="btn-primary" onclick="guardarEdicion()">GUARDAR CAMBIOS</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ MODAL BADGE PERSONALIZADO ══════ -->
+<div id="modal-badge" class="modal hidden" onclick="cerrarModalBadge()">
+  <div class="modal-inner" onclick="event.stopPropagation()" style="max-width:420px;">
+    <div class="modal-form-header">
+      <h3>🏷️ Etiqueta del producto</h3>
+      <button class="modal-close" onclick="cerrarModalBadge()">✕</button>
+    </div>
+    <div class="modal-form-body">
+      <input type="hidden" id="badge-producto-id"/>
+      <div class="field-group">
+        <label>Texto de la etiqueta</label>
+        <input type="text" id="badge-texto" placeholder="Ej: RESERVADO, EN OFERTA, NUEVO..." maxlength="20"/>
+      </div>
+      <div class="field-group">
+        <label>Color de fondo</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;" id="badge-colores-preset">
+          <button class="badge-color-btn" style="background:#22c55e;color:#fff" onclick="seleccionarColorBadge('#22c55e','#ffffff')">Verde</button>
+          <button class="badge-color-btn" style="background:#ef4444;color:#fff" onclick="seleccionarColorBadge('#ef4444','#ffffff')">Rojo</button>
+          <button class="badge-color-btn" style="background:#f97316;color:#fff" onclick="seleccionarColorBadge('#f97316','#ffffff')">Naranja</button>
+          <button class="badge-color-btn" style="background:#3b82f6;color:#fff" onclick="seleccionarColorBadge('#3b82f6','#ffffff')">Azul</button>
+          <button class="badge-color-btn" style="background:#a855f7;color:#fff" onclick="seleccionarColorBadge('#a855f7','#ffffff')">Violeta</button>
+          <button class="badge-color-btn" style="background:#eab308;color:#111" onclick="seleccionarColorBadge('#eab308','#111111')">Amarillo</button>
+          <button class="badge-color-btn" style="background:#111827;color:#fff;border:1px solid #374151" onclick="seleccionarColorBadge('#111827','#ffffff')">Negro</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <label style="font-size:0.8rem;color:var(--text3);white-space:nowrap;">Personalizado:</label>
+          <input type="color" id="badge-color-fondo" value="#22c55e" style="width:44px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none;"/>
+          <input type="color" id="badge-color-texto" value="#ffffff" style="width:44px;height:36px;border:none;border-radius:6px;cursor:pointer;background:none;"/>
+          <span style="font-size:0.78rem;color:var(--text3)">fondo · texto</span>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Vista previa</label>
+        <div style="padding:12px;background:var(--bg2);border-radius:8px;text-align:center;">
+          <span id="badge-preview" style="display:inline-block;padding:4px 12px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:0.05em;">DISPONIBLE</span>
+        </div>
+      </div>
+      <button class="btn-ghost-sm" onclick="quitarBadge()" style="color:var(--text3);margin-top:4px;">✕ Quitar etiqueta (volver a Disponible)</button>
+    </div>
+    <div class="modal-form-footer">
+      <button class="btn-primary" onclick="guardarBadge()">APLICAR ETIQUETA</button>
     </div>
   </div>
 </div>

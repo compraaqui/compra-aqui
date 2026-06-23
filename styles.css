@@ -361,7 +361,7 @@ textarea { resize: vertical; }
 .detalle-wrap { max-width: 960px; margin: 0 auto; padding: 36px 24px 60px; }
 .detalle-fotos-grid-OLD { display: none; }
 .detalle-foto {
-  width: 100%; height: 396px; object-fit: cover;
+  width: 100%; height: 190px; object-fit: cover;
   border-radius: var(--radius); cursor: pointer;
   border: 2px solid transparent; transition: all 0.2s;
 }
@@ -996,3 +996,25 @@ textarea { resize: vertical; }
   color: #fbbf24;
   border: 1px solid rgba(245,158,11,0.3);
 }
+
+/* ═══ BADGE ESTADO PERSONALIZADO ═══ */
+.badge-estado {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.4;
+}
+
+.badge-color-btn {
+  border: none;
+  border-radius: 16px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.badge-color-btn:hover { transform: scale(1.07); }

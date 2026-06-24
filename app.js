@@ -1750,7 +1750,6 @@ function mostrarMisProductos() {
 
   misProductosListener = db.collection('productos_usuarios')
     .where('uid', '==', currentUser.uid)
-    .orderBy('fecha', 'desc')
     .onSnapshot(snap => {
       if (snap.empty) {
         lista.innerHTML = `
@@ -1898,7 +1897,6 @@ async function cargarPendientesAdmin() {
 
   const snap = await db.collection('productos_usuarios')
     .where('estado', '==', 'pendiente')
-    .orderBy('fecha', 'asc')
     .get();
 
   // Actualizar badge en el tab

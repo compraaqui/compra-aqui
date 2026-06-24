@@ -93,6 +93,10 @@ function showScreen(id, productoId) {
   // Recordar dónde estaba el usuario, para volver ahí si recarga/reabre la app.
   // Solo nos interesa recordar pantallas "de contenido" (detalle/remate);
   // tienda/admin/login son los puntos de entrada normales, no hace falta guardarlas.
+  if (id === 'screen-mis-productos') {
+    mostrarMisProductos();
+  }
+
   if (id === 'screen-detalle' || id === 'screen-remate') {
     sessionStorage.setItem('ultimaPantalla', JSON.stringify({ id, productoId }));
   } else if (id === 'screen-tienda' || id === 'screen-admin') {
@@ -165,6 +169,7 @@ auth.onAuthStateChanged(async (user) => {
   if (user.email === ADMIN_EMAIL) {
     await cargarMetricas();
     await cargarProductosAdmin();
+    escucharPendientes();  // badge en tiempo real
     showScreen('screen-admin');
   } else {
     await cargarProductosTienda();
@@ -1727,3 +1732,270 @@ function iniciarCountdownsAdmin() {
   actualizar();
   setInterval(actualizar, 1000);
 }
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MÓDULO: PRODUCTOS DE USUARIOS (cargar para vender, aprobación admin)
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── Pantalla "Mis productos" ──────────────────────────────────────────────
+
+let misProductosListener = null;
+
+function mostrarMisProductos() {
+  if (misProductosListener) { misProductosListener(); misProductosListener = null; }
+  const lista = document.getElementById('mis-productos-lista');
+  if (!lista) return;
+  lista.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Cargando...</p></div>';
+
+  misProductosListener = db.collection('productos_usuarios')
+    .where('uid', '==', currentUser.uid)
+    .orderBy('fecha', 'desc')
+    .onSnapshot(snap => {
+      if (snap.empty) {
+        lista.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📦</div>
+            <p>Todavía no cargaste ningún producto.</p>
+            <button class="btn-primary" onclick="abrirModalCargarProducto()" style="margin-top:16px;">➕ Cargar mi primer producto</button>
+          </div>`;
+        return;
+      }
+      lista.innerHTML = snap.docs.map(d => {
+        const p   = { id: d.id, ...d.data() };
+        const img = p.fotos?.[0]
+          ? `<img src="${p.fotos[0]}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;flex-shrink:0;" onerror="this.style.display='none'">`
+          : `<div style="width:64px;height:64px;background:var(--bg3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.5rem;flex-shrink:0;">📦</div>`;
+
+        let estadoHtml = '';
+        if (p.estado === 'aprobado') {
+          estadoHtml = '<span class="pill pill-success">✅ Aprobado — visible en la tienda</span>';
+        } else if (p.estado === 'rechazado') {
+          estadoHtml = `<span class="pill pill-danger">❌ Rechazado${p.motivoRechazo ? ': ' + esc(p.motivoRechazo) : ''}</span>`;
+        } else {
+          estadoHtml = '<span class="pill pill-warning">⏳ En revisión</span>';
+        }
+
+        const puedeEditar = p.estado !== 'rechazado';
+        return `
+          <div class="admin-item" style="margin-bottom:12px;${p.estado==='rechazado'?'border-color:rgba(239,68,68,0.3);':''}">
+            ${img}
+            <div class="admin-item-info" style="flex:1;min-width:0;">
+              <div class="admin-item-nombre">${esc(p.nombre)}</div>
+              <div class="admin-item-meta">$${(p.precio||0).toLocaleString('es-AR')} · ${p.condicion||'Sin especificar'}</div>
+              <div style="margin-top:6px;">${estadoHtml}</div>
+            </div>
+            <div class="admin-item-actions" style="flex-direction:column;gap:6px;">
+              ${puedeEditar ? `<button class="btn-sm btn-sm-primary" onclick="editarMiProducto('${p.id}')">✏️ Editar</button>` : ''}
+              <button class="btn-sm btn-sm-danger" onclick="borrarMiProducto('${p.id}')">🗑️ Borrar</button>
+            </div>
+          </div>`;
+      }).join('');
+    }, err => {
+      console.error('Error mis productos:', err);
+      lista.innerHTML = '<div class="empty-state"><p>Error al cargar productos.</p></div>';
+    });
+}
+
+// ── Modal cargar/editar producto usuario ─────────────────────────────────
+
+function abrirModalCargarProducto(id) {
+  fotosSubidas['mcp'] = [];
+  document.getElementById('mcp-id').value        = id || '';
+  document.getElementById('mcp-nombre').value    = '';
+  document.getElementById('mcp-descripcion').value = '';
+  document.getElementById('mcp-precio').value    = '';
+  document.getElementById('mcp-condicion').value = '';
+  document.getElementById('mcp-fotos-preview').innerHTML = '';
+  document.getElementById('mcp-error').classList.add('hidden');
+  document.getElementById('mcp-titulo').textContent = id ? '✏️ Editar mi producto' : '➕ Cargar producto para vender';
+  document.getElementById('modal-cargar-producto').classList.remove('hidden');
+}
+
+function cerrarModalCargarProducto() {
+  document.getElementById('modal-cargar-producto').classList.add('hidden');
+  fotosSubidas['mcp'] = [];
+}
+
+async function editarMiProducto(id) {
+  const doc = await db.collection('productos_usuarios').doc(id).get();
+  if (!doc.exists) return;
+  const p = doc.data();
+  fotosSubidas['mcp'] = [];
+  document.getElementById('mcp-id').value          = id;
+  document.getElementById('mcp-nombre').value      = p.nombre || '';
+  document.getElementById('mcp-descripcion').value = p.descripcion || '';
+  document.getElementById('mcp-precio').value      = p.precio || '';
+  document.getElementById('mcp-condicion').value   = p.condicion || '';
+  document.getElementById('mcp-titulo').textContent = '✏️ Editar mi producto';
+  document.getElementById('mcp-error').classList.add('hidden');
+  // Mostrar fotos existentes
+  const prev = document.getElementById('mcp-fotos-preview');
+  prev.innerHTML = (p.fotos || []).map(url => `
+    <div class="foto-thumb" style="position:relative;" data-url="${url}">
+      <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;"/>
+      <button onclick="event.stopPropagation();this.closest('[data-url]').remove()"
+        style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:20px;padding:0;">✕</button>
+    </div>`).join('');
+  document.getElementById('modal-cargar-producto').classList.remove('hidden');
+}
+
+async function guardarProductoUsuario() {
+  const id          = document.getElementById('mcp-id').value;
+  const nombre      = document.getElementById('mcp-nombre').value.trim();
+  const descripcion = document.getElementById('mcp-descripcion').value.trim();
+  const precio      = parseFloat(document.getElementById('mcp-precio').value) || 0;
+  const condicion   = document.getElementById('mcp-condicion').value;
+  const err         = document.getElementById('mcp-error');
+  err.classList.add('hidden');
+
+  if (!nombre) { err.textContent = 'El nombre es obligatorio.'; err.classList.remove('hidden'); return; }
+  if (!precio)  { err.textContent = 'Ingresá un precio.'; err.classList.remove('hidden'); return; }
+
+  // Combinar fotos existentes + nuevas subidas
+  const fotosExist = [...document.querySelectorAll('#mcp-fotos-preview [data-url]')].map(el => el.dataset.url);
+  const fotosNuevas = fotosSubidas['mcp'] || [];
+  const fotos = [...new Set([...fotosExist, ...fotosNuevas])];
+
+  const userDoc = await db.collection('usuarios').doc(currentUser.uid).get();
+  const uData   = userDoc.data() || {};
+
+  const datos = {
+    nombre, descripcion, precio, condicion, fotos,
+    uid:         currentUser.uid,
+    emailVendedor: currentUser.email,
+    nombreVendedor: uData.nombre || currentUser.email,
+    telefonoVendedor: uData.telefono || '',
+    estado:      'pendiente',
+    fecha:       new Date().toISOString(),
+  };
+
+  if (id) {
+    // Editar: vuelve a pendiente para re-aprobación
+    await db.collection('productos_usuarios').doc(id).update({ ...datos, fechaEdicion: new Date().toISOString() });
+  } else {
+    await db.collection('productos_usuarios').add(datos);
+  }
+
+  cerrarModalCargarProducto();
+  // Actualizar badge pendientes si el admin está en sesión (no aplica para usuarios)
+}
+
+async function borrarMiProducto(id) {
+  if (!confirm('¿Seguro que querés borrar este producto?')) return;
+  await db.collection('productos_usuarios').doc(id).delete();
+}
+
+// ── Panel admin: pendientes ───────────────────────────────────────────────
+
+async function cargarPendientesAdmin() {
+  const lista = document.getElementById('admin-pendientes-lista');
+  if (!lista) return;
+  lista.innerHTML = '<div class="loading-state"><div class="spinner"></div><p>Cargando...</p></div>';
+
+  const snap = await db.collection('productos_usuarios')
+    .where('estado', '==', 'pendiente')
+    .orderBy('fecha', 'asc')
+    .get();
+
+  // Actualizar badge en el tab
+  const badge = document.getElementById('badge-pendientes');
+  if (badge) {
+    badge.textContent = snap.size;
+    badge.style.display = snap.size > 0 ? 'inline-block' : 'none';
+  }
+
+  if (snap.empty) {
+    lista.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><p>No hay productos pendientes de aprobación.</p></div>';
+    return;
+  }
+
+  lista.innerHTML = snap.docs.map(d => {
+    const p = { id: d.id, ...d.data() };
+    const fecha = p.fecha ? new Date(p.fecha).toLocaleString('es-AR') : '—';
+    const imgs = (p.fotos || []).slice(0, 3).map(url =>
+      `<img src="${url}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;" onerror="this.style.display='none'">`
+    ).join('');
+
+    return `
+      <div class="admin-item" style="margin-bottom:16px;flex-direction:column;align-items:stretch;gap:12px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="display:flex;gap:8px;flex-shrink:0;">${imgs || '<div style="width:80px;height:80px;background:var(--bg3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:2rem;">📦</div>'}</div>
+          <div style="flex:1;min-width:200px;">
+            <div class="admin-item-nombre">${esc(p.nombre)}</div>
+            <div class="admin-item-meta">$${(p.precio||0).toLocaleString('es-AR')} · ${p.condicion||'Sin especificar'}</div>
+            <div class="admin-item-meta" style="margin-top:4px;">👤 ${esc(p.nombreVendedor)} · ${esc(p.emailVendedor)}</div>
+            ${p.telefonoVendedor ? `<div class="admin-item-meta">📱 ${esc(p.telefonoVendedor)}</div>` : ''}
+            ${p.descripcion ? `<div style="margin-top:8px;font-size:0.85rem;color:var(--text2);background:var(--bg2);padding:8px;border-radius:8px;">${esc(p.descripcion)}</div>` : ''}
+            <div class="admin-item-meta" style="margin-top:6px;">📅 ${fecha}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-sm btn-sm-success" onclick="aprobarProductoUsuario('${p.id}')">✅ Aprobar y publicar</button>
+          <button class="btn-sm btn-sm-danger" onclick="rechazarProductoUsuario('${p.id}','${esc(p.nombre)}')">❌ Rechazar y eliminar</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function aprobarProductoUsuario(id) {
+  const doc = await db.collection('productos_usuarios').doc(id).get();
+  if (!doc.exists) return;
+  const p = doc.data();
+
+  // Publicar en la colección principal de productos
+  await db.collection('productos').add({
+    nombre:        p.nombre,
+    descripcion:   p.descripcion || '',
+    precio:        p.precio,
+    condicion:     p.condicion || '',
+    fotos:         p.fotos || [],
+    vendido:       false,
+    fecha:         new Date().toISOString(),
+    badgeTexto:    'DISPONIBLE',
+    badgeFondo:    '#6366f1',
+    badgeColor:    '#ffffff',
+    // Datos del vendedor para referencia del admin
+    uidVendedor:       p.uid,
+    nombreVendedor:    p.nombreVendedor || '',
+    emailVendedor:     p.emailVendedor || '',
+    telefonoVendedor:  p.telefonoVendedor || '',
+    origenUsuario:     true,
+  });
+
+  // Marcar como aprobado en productos_usuarios
+  await db.collection('productos_usuarios').doc(id).update({ estado: 'aprobado' });
+
+  cargarPendientesAdmin();
+  cargarMetricas();
+  // Notificar al admin visualmente
+  const msg = document.getElementById('admin-usuarios-msg');
+  if (msg) {
+    msg.textContent = `✅ Producto "${p.nombre}" aprobado y publicado en la tienda.`;
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 5000);
+  }
+}
+
+async function rechazarProductoUsuario(id, nombre) {
+  if (!confirm(`¿Rechazar y eliminar el producto "${nombre}"? El usuario verá que fue rechazado.`)) return;
+  await db.collection('productos_usuarios').doc(id).update({
+    estado: 'rechazado',
+    motivoRechazo: 'No cumple con los requisitos de la plataforma.'
+  });
+  cargarPendientesAdmin();
+}
+
+// ── Badge de pendientes en tiempo real (visible para el admin) ────────────
+function escucharPendientes() {
+  db.collection('productos_usuarios')
+    .where('estado', '==', 'pendiente')
+    .onSnapshot(snap => {
+      const badge = document.getElementById('badge-pendientes');
+      if (!badge) return;
+      badge.textContent = snap.size;
+      badge.style.display = snap.size > 0 ? 'inline-block' : 'none';
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════════════

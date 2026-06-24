@@ -486,6 +486,8 @@ function verComoCliente() {
   showScreen('screen-tienda');
   const banner = document.getElementById('banner-vista-admin');
   if (banner) banner.style.display = 'flex';
+  // Forzar recarga de productos
+  cargarProductosTienda();
 }
 
 function volverAlAdmin() {

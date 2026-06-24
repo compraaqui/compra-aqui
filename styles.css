@@ -1021,3 +1021,39 @@ textarea { resize: vertical; }
   transition: transform 0.1s;
 }
 .badge-color-btn:hover { transform: scale(1.07); }
+
+/* ═══ MÓDULO MIS PRODUCTOS ═══ */
+.btn-mis-productos {
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.35);
+  color: var(--accent2);
+  border-radius: var(--radius);
+  padding: 7px 13px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.btn-mis-productos:hover {
+  background: rgba(99,102,241,0.28);
+  border-color: var(--accent);
+}
+
+.btn-sm-badge {
+  background: rgba(245,158,11,0.15);
+  border: 1px solid rgba(245,158,11,0.35);
+  color: #fbbf24;
+}
+.btn-sm-badge:hover {
+  background: rgba(245,158,11,0.28);
+}
+
+.btn-sm-info {
+  background: rgba(59,130,246,0.15);
+  border: 1px solid rgba(59,130,246,0.35);
+  color: #60a5fa;
+}
+.btn-sm-info:hover {
+  background: rgba(59,130,246,0.28);
+}

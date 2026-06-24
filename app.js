@@ -972,6 +972,14 @@ async function guardarProducto() {
 
   try {
     await db.collection('productos').add(producto);
+
+    // Si venía de un pendiente, marcarlo como aprobado
+    const pendienteId = document.getElementById('np-nombre').dataset.pendienteId;
+    if (pendienteId) {
+      await db.collection('productos_usuarios').doc(pendienteId).update({ estado: 'aprobado' });
+      delete document.getElementById('np-nombre').dataset.pendienteId;
+    }
+
     limpiarFormNuevo();
     cargarMetricas();
     // Ir al tab Productos para ver el producto recién publicado
@@ -1950,11 +1958,57 @@ async function cargarPendientesAdmin() {
           </div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn-sm btn-sm-primary" onclick="editarPendienteEnFormulario('${p.id}')">✏️ Editar antes de publicar</button>
           <button class="btn-sm btn-sm-success" onclick="aprobarProductoUsuario('${p.id}')">✅ Aprobar y publicar</button>
           <button class="btn-sm btn-sm-danger" onclick="rechazarProductoUsuario('${p.id}','${esc(p.nombre)}')">❌ Rechazar y eliminar</button>
         </div>
       </div>`;
   }).join('');
+}
+
+// Editar un producto pendiente antes de publicarlo — abre el tab Nuevo pre-cargado
+async function editarPendienteEnFormulario(idPendiente) {
+  const doc = await db.collection('productos_usuarios').doc(idPendiente).get();
+  if (!doc.exists) return;
+  const p = doc.data();
+
+  // Ir al tab Nuevo
+  const btnNuevo = document.querySelector('.tab-btn[onclick*="tab-nuevo"]');
+  if (btnNuevo) btnNuevo.click();
+
+  // Esperar que el DOM esté listo
+  await new Promise(r => setTimeout(r, 80));
+
+  // Pre-cargar los campos con los datos del producto pendiente
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('np-nombre',      p.nombre);
+  set('np-descripcion', p.descripcion);
+  set('np-precio',      p.precio);
+  set('np-condicion',   p.condicion || 'Usado');
+
+  // Fotos — cargar las existentes en el uploader
+  fotosSubidas['np'] = p.fotos || [];
+  const prev = document.getElementById('np-fotos-preview');
+  if (prev) {
+    prev.innerHTML = (p.fotos || []).map(url => `
+      <div class="foto-thumb" style="position:relative;">
+        <img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:6px;" loading="lazy"/>
+        <button onclick="event.stopPropagation();eliminarFotoSubida('${url}','np')"
+          style="position:absolute;top:2px;right:2px;background:rgba(0,0,0,0.6);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:20px;padding:0;">✕</button>
+      </div>`).join('');
+  }
+
+  // Guardar referencia al pendiente para usarla al publicar
+  document.getElementById('np-nombre').dataset.pendienteId = idPendiente;
+
+  // Mostrar aviso
+  const suc = document.getElementById('np-success');
+  if (suc) {
+    suc.textContent = `✏️ Editando producto de ${p.nombreVendedor || 'usuario'}. Completá los campos y presioná "PUBLICAR PRODUCTO" para aprobar.`;
+    suc.classList.remove('hidden');
+  }
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 async function aprobarProductoUsuario(id) {

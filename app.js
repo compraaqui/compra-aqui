@@ -480,7 +480,23 @@ function renderProductosTienda(productos) {
 // ════════════════════════════════════════════════
 // DETALLE PRODUCTO
 // ════════════════════════════════════════════════
-// ── Ver producto como cliente (desde admin) ──────────────────────────────────
+// ── Vista cliente completa desde admin ───────────────────────────────────────
+function verComoCliente() {
+  sessionStorage.setItem('modoVistaAdmin', '1');
+  showScreen('screen-tienda');
+  const banner = document.getElementById('banner-vista-admin');
+  if (banner) banner.style.display = 'flex';
+}
+
+function volverAlAdmin() {
+  sessionStorage.removeItem('modoVistaAdmin');
+  const banner = document.getElementById('banner-vista-admin');
+  if (banner) banner.style.display = 'none';
+  showScreen('screen-admin');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Ver producto como cliente (desde admin) ───────────────────────────────────
 function verProductoComoCliente(id) {
   const p = productosCache.find(x => x.id === id);
   if (!p) return;

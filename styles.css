@@ -901,6 +901,7 @@ textarea { resize: vertical; }
   box-sizing: border-box;
 }
 .detalle-fotos-2 .detalle-grid    { grid-template-columns: 1fr 1fr; }
+.detalle-fotos-2 .detalle-grid img { height: 320px; }
 .detalle-fotos-3 .detalle-grid    { grid-template-columns: 1fr 1fr 1fr; }
 .detalle-fotos-grid .detalle-grid { grid-template-columns: repeat(4, 1fr); }
 

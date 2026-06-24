@@ -430,7 +430,7 @@ function renderProductosTienda(productos) {
     const semaforoClass = esVendidoReal ? 'semaforo-rojo' : 'semaforo-verde';
     // Badge personalizado o defaults
     const badgeTexto    = p.badgeTexto || (esVendidoReal ? 'VENDIDO' : 'DISPONIBLE');
-    const badgeFondo    = p.badgeFondo || (esVendidoReal ? '#ef4444' : '#22c55e');
+    const badgeFondo    = p.badgeFondo || (esVendidoReal ? '#ef4444' : '#6366f1');
     const badgeColor    = p.badgeColor || '#ffffff';
     const badgeHtml     = `<span class="badge-estado" style="background:${badgeFondo};color:${badgeColor}">${badgeTexto}</span>`;
     const imgHtml = p.fotos && p.fotos[0]
@@ -789,7 +789,7 @@ async function guardarBadge() {
 async function quitarBadge() {
   const id = document.getElementById('badge-producto-id').value;
   await db.collection('productos').doc(id).update({
-    badgeTexto: 'DISPONIBLE', badgeFondo: '#22c55e', badgeColor: '#ffffff',
+    badgeTexto: 'DISPONIBLE', badgeFondo: '#6366f1', badgeColor: '#ffffff',
     vendido: false
   });
   cerrarModalBadge();

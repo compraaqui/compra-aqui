@@ -1870,15 +1870,18 @@ async function guardarProductoUsuario() {
     fecha:       new Date().toISOString(),
   };
 
-  if (id) {
-    // Editar: vuelve a pendiente para re-aprobación
-    await db.collection('productos_usuarios').doc(id).update({ ...datos, fechaEdicion: new Date().toISOString() });
-  } else {
-    await db.collection('productos_usuarios').add(datos);
+  try {
+    if (id) {
+      await db.collection('productos_usuarios').doc(id).update({ ...datos, fechaEdicion: new Date().toISOString() });
+    } else {
+      await db.collection('productos_usuarios').add(datos);
+    }
+    cerrarModalCargarProducto();
+  } catch(e) {
+    console.error('Error guardarProductoUsuario:', e);
+    err.textContent = 'Error al enviar: ' + (e.message || e.code || 'Sin conexión. Intentá de nuevo.');
+    err.classList.remove('hidden');
   }
-
-  cerrarModalCargarProducto();
-  // Actualizar badge pendientes si el admin está en sesión (no aplica para usuarios)
 }
 
 async function borrarMiProducto(id) {

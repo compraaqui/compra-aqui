@@ -654,17 +654,56 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
             <textarea id="lote-descripcion" rows="3" placeholder="Estado general, de dónde viene, por qué conviene..."></textarea>
           </div>
           <div class="field-group span2">
-            <label>Productos del lote * (uno por línea: nombre | cantidad | precio de reventa c/u)</label>
-            <textarea id="lote-items" rows="6" placeholder="Sofá cama | 2 | 180000&#10;Mesa ratona | 4 | 45000&#10;Silla comedor | 12 | 15000"></textarea>
-            <div class="field-hint">El precio de reventa es lo que estimás que el comerciante puede cobrar por cada unidad.</div>
+            <label>1) Elegí los productos del lote *</label>
+            <div class="lp-box">
+              <div class="lp-filtros">
+                <input type="text" id="lote-buscar" placeholder="🔍 Buscar producto..." oninput="renderPickerLote()"/>
+                <select id="lote-cat" onchange="renderPickerLote()"><option value="">Todas las categorías</option></select>
+              </div>
+              <div class="lp-botones">
+                <button type="button" class="btn-sm btn-sm-info" id="lote-btn-todos" onclick="toggleTodosLote()">☑ TODOS</button>
+                <button type="button" class="btn-sm btn-sm-warning" onclick="ningunoLote()">Ninguno</button>
+                <button type="button" class="btn-sm btn-sm-primary" onclick="agregarSeleccionadosLote()">➕ AGREGAR AL LOTE (<span id="lote-sel-count">0</span>)</button>
+                <button type="button" class="btn-sm btn-sm-badge" onclick="agregarItemManualLote()">+ Ítem manual</button>
+              </div>
+              <div id="lote-picker" class="lp-lista"></div>
+            </div>
           </div>
-          <div class="field-group">
-            <label>Precio total del lote *</label>
-            <input type="number" id="lote-precio" placeholder="Lo que paga el comerciante"/>
+          <div class="field-group span2">
+            <label>2) Productos en el lote (podés cambiar cantidad y precio de cada uno)</label>
+            <div id="lote-items-tabla" class="lp-box"></div>
+            <div class="field-hint">"Valor c/u" es lo que vale cada unidad (por defecto, el precio del producto en la tienda). Es la base para el descuento y para mostrar cuánto puede ganar el comerciante.</div>
           </div>
           <div class="field-group">
             <label>Moneda</label>
-            <select id="lote-moneda"><option value="ARS">$ Pesos</option><option value="USD">USD Dólares</option></select>
+            <select id="lote-moneda" onchange="renderTotalesLote()"><option value="ARS">$ Pesos</option><option value="USD">USD Dólares</option></select>
+          </div>
+          <div class="field-group">
+            <label>3) Descuento por llevar el lote completo</label>
+            <div style="display:flex;gap:8px;">
+              <select id="lote-desc-tipo" onchange="renderTotalesLote()" style="max-width:90px"><option value="%">%</option><option value="$">$ fijo</option></select>
+              <input type="number" id="lote-desc-valor" placeholder="Ej: 30" oninput="renderTotalesLote()" min="0"/>
+            </div>
+          </div>
+          <div class="field-group span2">
+            <label>…o fijar el precio del lote a mano (opcional, pisa el descuento)</label>
+            <input type="number" id="lote-precio-manual" placeholder="Dejalo vacío para usar el descuento" oninput="renderTotalesLote()" min="0"/>
+          </div>
+          <div class="field-group span2">
+            <div id="lote-totales" class="lp-totales"></div>
+          </div>
+          <div class="field-group span2">
+            <label>4) Descuentos por forma de pago (el comerciante elige uno)</label>
+            <div class="lp-box">
+              <div id="lote-condiciones"></div>
+              <div class="lp-botones">
+                <button type="button" class="btn-sm btn-sm-info" onclick="agregarCondicionLote('Pago completo (un solo pago)',5)">+ Pago completo</button>
+                <button type="button" class="btn-sm btn-sm-info" onclick="agregarCondicionLote('Efectivo / dinero físico',10)">+ Efectivo</button>
+                <button type="button" class="btn-sm btn-sm-info" onclick="agregarCondicionLote('Transferencia',5)">+ Transferencia</button>
+                <button type="button" class="btn-sm btn-sm-badge" onclick="agregarCondicionLote('',0)">+ Otra</button>
+              </div>
+            </div>
+            <div class="field-hint">Cada condición se calcula sobre el precio del lote y aparece en el PDF con su precio final.</div>
           </div>
           <div class="field-group">
             <label>⚡ Precio si confirma YA (opcional)</label>
@@ -682,10 +721,28 @@ Podés usar Enter para separar párrafos." style="white-space:pre-wrap;"></texta
             <label>Fotos (una URL por línea)</label>
             <textarea id="lote-fotos" rows="3" placeholder="https://..."></textarea>
           </div>
+          <div class="field-group span2"><label style="margin-top:6px;font-weight:700">📄 Datos para el PDF / presupuesto</label></div>
+          <div class="field-group">
+            <label>Cliente (mueblería / compraventa)</label>
+            <input type="text" id="lote-cliente" placeholder="Ej: Mueblería López"/>
+          </div>
+          <div class="field-group">
+            <label>Validez del presupuesto (días)</label>
+            <input type="number" id="lote-validez" placeholder="Ej: 7" min="0"/>
+          </div>
+          <div class="field-group span2">
+            <label>Condiciones / notas para el PDF</label>
+            <textarea id="lote-notas-pdf" rows="3" placeholder="Ej: Seña del 30% para reservar. Retiro por cuenta del comprador. Se vende en el estado en que se encuentra."></textarea>
+          </div>
+          <div class="field-group span2">
+            <label class="lp-check"><input type="checkbox" id="lote-pdf-fotos" checked/> Incluir fotos de cada producto en el PDF</label>
+            <label class="lp-check"><input type="checkbox" id="lote-pdf-ganancia" checked/> Mostrar potencial de reventa y ganancia estimada</label>
+          </div>
         </div>
         <div id="lote-error" class="alert alert-danger hidden"></div>
         <div id="lote-success" class="alert alert-success hidden"></div>
         <button class="btn-primary" onclick="guardarLote()">💾 GUARDAR LOTE</button>
+        <button class="btn-primary" onclick="pdfDesdeFormLote()" style="margin-top:10px;background:linear-gradient(135deg,#10b981,#059669)">📄 GENERAR PDF</button>
         <button class="btn-ghost" onclick="limpiarFormLote()" style="margin-top:10px">LIMPIAR</button>
       </div>
       <div id="admin-lotes-list" style="margin-top:20px"></div>

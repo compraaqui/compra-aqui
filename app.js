@@ -3027,14 +3027,21 @@ function generarCatalogoLote(l) {
   .precios span, .specs span { color:#94a3b8; }
   .precios strong { color:#93c5fd; }
   .tach { color:#f87171 !important; }
-  .foto-grid div { background:#000; }
+  .foto-grid div { background:#05070d; }
   .specs div, .txt { background:#0d1220; border-color:rgba(255,255,255,.08); }
   .specs strong { color:#f1f5f9; }
   .txt h4 { color:#93c5fd; }
   .txt div { color:#cbd5e1; }
   .nota { background:rgba(37,99,235,.16); border-color:#1e40af; color:#dbe4f5; }
   .cierre { background:#0d1220; border:1px solid rgba(147,197,253,.18); }
-  .pie { color:#64748b; }
+  .pie { color:#64748b; padding:0 12mm 12mm; }
+  @page { size:A4; margin:0; }
+  @media print {
+    .portada { margin:12mm; min-height:271mm; }
+    .prod { padding:12mm; min-height:295mm; }
+    .cierre { margin:12mm; }
+  }
+  @media screen { .prod { margin-bottom:16px; } }
   ` : '';
 
   const paginas = items.map((it, n) => {
@@ -3052,7 +3059,7 @@ function generarCatalogoLote(l) {
     ].filter(x => x[1]) : [];
 
     const grilla = (op.fotos && fotos.length)
-      ? `<div class="foto-grid">${fotos.map(f => `<div><img src="${esc(fotoCatalogo(f, 900))}" alt=""></div>`).join('')}</div>` : '';
+      ? `<div class="foto-grid g${Math.min(fotos.length, 3)}">${fotos.map(f => `<div><img src="${esc(fotoCatalogo(f, fotos.length === 1 ? 1400 : 900))}" alt=""></div>`).join('')}</div>` : '';
 
     const precios = [];
     if (op.cantidad) precios.push(`<div><span>En el lote</span><strong>${it.cant} u.</strong></div>`);
@@ -3110,9 +3117,15 @@ function generarCatalogoLote(l) {
   .precios span, .specs span { display:block; font-size:8.5px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); font-weight:500; }
   .precios strong { font-size:15px; font-weight:800; color:var(--navy2); }
   .tach { text-decoration:line-through; color:#dc2626 !important; }
-  .foto-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
-  .foto-grid div { background:#f1f5f9; border-radius:10px; overflow:hidden; break-inside:avoid; aspect-ratio:4/3; }
-  .foto-grid img { width:100%; height:100%; object-fit:cover; display:block; }
+  .foto-grid { display:grid; gap:8px; margin-bottom:10px; }
+  .foto-grid.g1 { grid-template-columns:1fr; }
+  .foto-grid.g2 { grid-template-columns:1fr 1fr; }
+  .foto-grid.g3 { grid-template-columns:repeat(3,1fr); }
+  .foto-grid div { background:#f1f5f9; border-radius:10px; overflow:hidden; break-inside:avoid; }
+  .foto-grid.g1 div { aspect-ratio:16/10; }
+  .foto-grid.g2 div { aspect-ratio:4/3; }
+  .foto-grid.g3 div { aspect-ratio:1/1; }
+  .foto-grid img { width:100%; height:100%; object-fit:contain; display:block; }
   .specs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
   .specs div { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#f8fafc; break-inside:avoid; }
   .specs strong { font-size:12px; font-weight:600; }

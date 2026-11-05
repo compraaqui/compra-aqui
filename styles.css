@@ -1121,3 +1121,35 @@ textarea { resize: vertical; }
 .lote-tabla th, .lote-tabla td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--border2); }
 .lote-tabla th { color:var(--text3); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.6px; }
 .lote-aviso { font-size:0.75rem; color:var(--text3); margin:0 0 14px; line-height:1.5; }
+
+/* ── Armador de lotes (admin) ── */
+.lp-box { background:var(--bg2); border:1px solid var(--border2); border-radius:var(--radius); padding:12px; display:grid; gap:10px; }
+.lp-filtros { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.lp-botones { display:flex; flex-wrap:wrap; gap:8px; }
+.lp-lista { max-height:320px; overflow-y:auto; display:grid; gap:6px; }
+.lp-row { display:flex; align-items:center; gap:10px; padding:8px; border:1px solid var(--border2); border-radius:10px; cursor:pointer; }
+.lp-row.lp-ya { opacity:.45; cursor:default; }
+.lp-row input[type=checkbox] { width:20px; height:20px; flex-shrink:0; }
+.lp-thumb { width:44px; height:44px; border-radius:8px; object-fit:cover; background:var(--bg3); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.lp-info { flex:1; min-width:0; }
+.lp-nom { font-size:.88rem; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lp-sub { font-size:.74rem; color:var(--text3); }
+.lp-item { display:grid; grid-template-columns:1fr 70px 110px 100px 32px; gap:8px; align-items:center; padding:6px 0; border-bottom:1px solid var(--border2); }
+.lp-item input { width:100%; padding:8px; }
+.lp-item .lp-subtotal { font-weight:700; font-size:.85rem; text-align:right; }
+.lp-head { font-size:.7rem; color:var(--text3); text-transform:uppercase; letter-spacing:.5px; }
+.lp-x { background:none; border:none; color:#f87171; font-size:1.1rem; cursor:pointer; }
+.lp-totales { background:var(--bg2); border:1px solid var(--accent); border-radius:var(--radius); padding:14px; display:grid; gap:6px; }
+.lp-totales .lp-fila { display:flex; justify-content:space-between; gap:10px; font-size:.9rem; }
+.lp-totales .lp-fila.lp-big { font-family:'Space Grotesk',sans-serif; font-size:1.3rem; font-weight:700; color:var(--accent2); }
+.lp-cond { display:grid; grid-template-columns:1fr 80px 90px 130px 32px; gap:8px; align-items:center; padding:6px 0; }
+.lp-cond input, .lp-cond select { width:100%; padding:8px; }
+.lp-check { display:flex; align-items:center; gap:8px; font-size:.9rem; margin-bottom:6px; }
+.lp-check input { width:18px; height:18px; }
+@media(max-width:640px){
+  .lp-filtros { grid-template-columns:1fr; }
+  .lp-item { grid-template-columns:1fr 1fr; }
+  .lp-item .lp-nombre-in { grid-column:1 / -1; }
+  .lp-cond { grid-template-columns:1fr 1fr; }
+  .lp-cond .lp-cond-label { grid-column:1 / -1; }
+}

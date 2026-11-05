@@ -2261,18 +2261,6 @@ function verLote(id) {
 async function cargarLotesAdmin() {
   const cont = document.getElementById('admin-lotes-list');
   if (!cont) return;
-  // El armador necesita los productos; si todavía no están cargados, los traemos.
-  if (!productosCache.length) {
-    try {
-      const ps = await db.collection('productos').orderBy('fecha','desc').get();
-      productosCache = ordenarProductos(ps.docs.map(d => ({ id:d.id, ...d.data() })));
-    } catch(e) { console.log('No se pudieron cargar productos para lotes', e); }
-  }
-  poblarCategoriasLote();
-  renderPickerLote();
-  renderItemsLote();
-  renderCondicionesLote();
-  renderTotalesLote();
   const snap = await db.collection('lotes').orderBy('fecha', 'desc').get();
   lotesCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   if (!lotesCache.length) { cont.innerHTML = '<div class="empty-state"><div class="empty-icon">🏪</div><p>Todavía no cargaste lotes.</p></div>'; return; }
@@ -2284,7 +2272,6 @@ async function cargarLotesAdmin() {
         <div class="admin-item-meta">${c.unidades} u. · Lote ${formatPrecio(l.precio, l.moneda)} · Reventa ${formatPrecio(c.reventaTotal, l.moneda)} · Ganancia ${formatPrecio(c.ganancia, l.moneda)} (${c.roi}%)</div>
       </div>
       <div class="admin-item-actions">
-        <button class="btn-sm btn-sm-info" onclick="generarPdfLote(lotesCache.find(x=>x.id==='${l.id}'))">📄 PDF</button>
         <button class="btn-sm btn-sm-primary" onclick="editarLote('${l.id}')">Editar</button>
         <button class="btn-sm btn-sm-warning" onclick="toggleLoteVendido('${l.id}', ${!!l.vendido})">${l.vendido ? 'Disponible' : 'Vendido'}</button>
         <button class="btn-sm btn-sm-danger" onclick="eliminarLote('${l.id}')">Eliminar</button>
@@ -2293,216 +2280,24 @@ async function cargarLotesAdmin() {
   }).join('');
 }
 
-// ── Estado del armador ──
-let loteItems = [];        // [{productoId, nombre, cant, reventa, foto}]
-let loteCondiciones = [];  // [{label, tipo:'%'|'$', valor}]
-const loteSel = new Set(); // ids de productos tildados en el selector
-
-function aplicarDescLote(base, tipo, valor) {
-  const v = Number(valor) || 0;
-  if (!v) return base;
-  const r = tipo === '$' ? base - v : base * (1 - v / 100);
-  return Math.max(0, Math.round(r));
-}
-
-function calcPreciosLote() {
-  const lista = loteItems.reduce((a, i) => a + (Number(i.cant) || 0) * (Number(i.reventa) || 0), 0);
-  const calc  = aplicarDescLote(lista, val('lote-desc-tipo'), val('lote-desc-valor'));
-  const manual = Number(val('lote-precio-manual')) || 0;
-  const precio = manual || calc;
-  return { lista, precio, ahorro: Math.max(0, lista - precio) };
-}
-
-// ── Selector de productos ──
-function poblarCategoriasLote() {
-  const sel = document.getElementById('lote-cat');
-  if (!sel) return;
-  const actual = sel.value;
-  const cats = [...new Set(productosCache.map(p => p.categoria).filter(Boolean))];
-  sel.innerHTML = '<option value="">Todas las categorías</option>' + cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  sel.value = actual;
-}
-
-function productosVisiblesLote() {
-  const q   = val('lote-buscar').toLowerCase();
-  const cat = val('lote-cat');
-  return productosCache.filter(p =>
-    !p.vendido &&
-    (!q || (p.nombre || '').toLowerCase().includes(q)) &&
-    (!cat || p.categoria === cat)
-  );
-}
-
-function enLote(id) { return loteItems.some(i => i.productoId === id); }
-
-function renderPickerLote() {
-  const cont = document.getElementById('lote-picker');
-  if (!cont) return;
-  const lista = productosVisiblesLote();
-  if (!lista.length) { cont.innerHTML = '<div class="field-hint">No hay productos disponibles con ese filtro.</div>'; actualizarContadorLote(); return; }
-  cont.innerHTML = lista.map(p => {
-    const ya = enLote(p.id);
-    const img = p.fotos && p.fotos[0] ? `<img class="lp-thumb" src="${esc(p.fotos[0])}" alt="" onerror="this.style.display='none'">` : '<div class="lp-thumb">📦</div>';
-    return `<label class="lp-row${ya ? ' lp-ya' : ''}">
-      <input type="checkbox" ${ya ? 'disabled checked' : ''} ${(!ya && loteSel.has(p.id)) ? 'checked' : ''} onchange="toggleSelLote('${p.id}', this.checked)">
-      ${img}
-      <div class="lp-info"><div class="lp-nom">${esc(p.nombre)}</div>
-      <div class="lp-sub">${formatPrecio(p.precio, p.moneda)}${p.cantidad ? ' · x' + esc(p.cantidad) : ''}${p.categoria ? ' · ' + esc(p.categoria) : ''}${ya ? ' · ya está en el lote' : ''}</div></div>
-    </label>`;
-  }).join('');
-  actualizarContadorLote();
-}
-
-function actualizarContadorLote() {
-  setText('lote-sel-count', loteSel.size);
-  const visibles = productosVisiblesLote().filter(p => !enLote(p.id));
-  const todos = visibles.length && visibles.every(p => loteSel.has(p.id));
-  const btn = document.getElementById('lote-btn-todos');
-  if (btn) btn.textContent = todos ? '☐ QUITAR TODOS' : '☑ TODOS';
-}
-
-function toggleSelLote(id, on) {
-  if (on) loteSel.add(id); else loteSel.delete(id);
-  actualizarContadorLote();
-}
-
-function toggleTodosLote() {
-  const visibles = productosVisiblesLote().filter(p => !enLote(p.id));
-  const todos = visibles.length && visibles.every(p => loteSel.has(p.id));
-  visibles.forEach(p => todos ? loteSel.delete(p.id) : loteSel.add(p.id));
-  renderPickerLote();
-}
-
-function ningunoLote() { loteSel.clear(); renderPickerLote(); }
-
-function agregarSeleccionadosLote() {
-  const err = document.getElementById('lote-error');
-  err.classList.add('hidden');
-  if (!loteSel.size) { mostrarError(err, 'Tildá al menos un producto (o tocá TODOS).'); return; }
-  const monedaLote = val('lote-moneda') || 'ARS';
-  let otraMoneda = false;
-  productosCache.filter(p => loteSel.has(p.id) && !enLote(p.id)).forEach(p => {
-    if ((p.moneda || 'ARS') !== monedaLote) otraMoneda = true;
-    loteItems.push({
-      productoId: p.id,
-      nombre: p.nombre,
-      cant: Math.max(1, parseInt(p.cantidad, 10) || 1),
-      reventa: Number(p.precio) || 0,
-      foto: (p.fotos && p.fotos[0]) || ''
-    });
-  });
-  loteSel.clear();
-  if (otraMoneda) mostrarError(err, 'Ojo: agregaste productos cargados en otra moneda que la del lote. Revisá los precios.');
-  renderPickerLote(); renderItemsLote(); renderTotalesLote();
-}
-
-function agregarItemManualLote() {
-  loteItems.push({ productoId: null, nombre: '', cant: 1, reventa: 0, foto: '' });
-  renderItemsLote(); renderTotalesLote();
-}
-
-// ── Tabla de ítems del lote ──
-function renderItemsLote() {
-  const cont = document.getElementById('lote-items-tabla');
-  if (!cont) return;
-  if (!loteItems.length) { cont.innerHTML = '<div class="field-hint">Todavía no hay productos en el lote. Elegilos arriba.</div>'; return; }
-  const m = val('lote-moneda') || 'ARS';
-  cont.innerHTML = `<div class="lp-item lp-head"><div class="lp-nombre-in">Producto</div><div>Cant.</div><div>Valor c/u</div><div style="text-align:right">Subtotal</div><div></div></div>` +
-    loteItems.map((it, i) => `<div class="lp-item">
-      <div class="lp-nombre-in"><input type="text" value="${esc(it.nombre)}" placeholder="Nombre" oninput="loteItems[${i}].nombre=this.value"></div>
-      <input type="number" min="1" value="${it.cant}" oninput="loteItems[${i}].cant=Math.max(1,parseInt(this.value,10)||1);actualizarSubtotalLote(${i});renderTotalesLote()">
-      <input type="number" min="0" value="${it.reventa}" oninput="loteItems[${i}].reventa=Number(this.value)||0;actualizarSubtotalLote(${i});renderTotalesLote()">
-      <div class="lp-subtotal" id="lote-sub-${i}">${formatPrecio(it.cant * it.reventa, m)}</div>
-      <button type="button" class="lp-x" title="Quitar" onclick="quitarItemLote(${i})">✕</button>
-    </div>`).join('');
-}
-
-function actualizarSubtotalLote(i) {
-  const el = document.getElementById('lote-sub-' + i);
-  const it = loteItems[i];
-  if (el && it) el.textContent = formatPrecio(it.cant * it.reventa, val('lote-moneda') || 'ARS');
-}
-
-function quitarItemLote(i) {
-  loteItems.splice(i, 1);
-  renderPickerLote(); renderItemsLote(); renderTotalesLote();
-}
-
-// ── Totales y condiciones de pago ──
-function renderTotalesLote() {
-  const cont = document.getElementById('lote-totales');
-  if (!cont) return;
-  const m = val('lote-moneda') || 'ARS';
-  const unidades = loteItems.reduce((a, i) => a + (Number(i.cant) || 0), 0);
-  const t = calcPreciosLote();
-  cont.innerHTML = `
-    <div class="lp-fila"><span>${loteItems.length} productos · ${unidades} unidades</span><span></span></div>
-    <div class="lp-fila"><span>Valor total de los productos</span><strong>${formatPrecio(t.lista, m)}</strong></div>
-    <div class="lp-fila"><span>Descuento por lote completo</span><strong>− ${formatPrecio(t.ahorro, m)}</strong></div>
-    <div class="lp-fila lp-big"><span>PRECIO DEL LOTE</span><span>${formatPrecio(t.precio, m)}</span></div>`;
-  loteCondiciones.forEach((c, i) => {
-    const el = document.getElementById('lote-cond-final-' + i);
-    if (el) el.textContent = formatPrecio(aplicarDescLote(t.precio, c.tipo, c.valor), m);
-  });
-}
-
-function renderCondicionesLote() {
-  const cont = document.getElementById('lote-condiciones');
-  if (!cont) return;
-  if (!loteCondiciones.length) { cont.innerHTML = '<div class="field-hint">Sin condiciones: el PDF mostrará solo el precio del lote.</div>'; return; }
-  cont.innerHTML = loteCondiciones.map((c, i) => `<div class="lp-cond">
-    <input class="lp-cond-label" type="text" value="${esc(c.label)}" placeholder="Ej: Efectivo / dinero físico" oninput="loteCondiciones[${i}].label=this.value">
-    <select onchange="loteCondiciones[${i}].tipo=this.value;renderTotalesLote()"><option value="%" ${c.tipo==='%'?'selected':''}>%</option><option value="$" ${c.tipo==='$'?'selected':''}>$ fijo</option></select>
-    <input type="number" min="0" value="${c.valor}" oninput="loteCondiciones[${i}].valor=Number(this.value)||0;renderTotalesLote()">
-    <strong id="lote-cond-final-${i}" style="font-size:.85rem;text-align:right"></strong>
-    <button type="button" class="lp-x" title="Quitar" onclick="quitarCondicionLote(${i})">✕</button>
-  </div>`).join('');
-  renderTotalesLote();
-}
-
-function agregarCondicionLote(label, valor) {
-  loteCondiciones.push({ label, tipo: '%', valor });
-  renderCondicionesLote();
-}
-function quitarCondicionLote(i) { loteCondiciones.splice(i, 1); renderCondicionesLote(); }
-
-// ── Guardar / editar ──
-function datosDesdeFormLote() {
-  const t = calcPreciosLote();
-  const precioYa = val('lote-precio-ya');
-  return {
-    nombre: val('lote-nombre'), descripcion: val('lote-descripcion'),
-    items: loteItems.map(i => ({
-      productoId: i.productoId || null,
-      nombre: (i.nombre || '').trim() || 'Producto',
-      cant: Math.max(1, parseInt(i.cant, 10) || 1),
-      reventa: Number(i.reventa) || 0,
-      foto: i.foto || ''
-    })),
-    precio: t.precio, precioLista: t.lista,
-    descGeneral: { tipo: val('lote-desc-tipo') || '%', valor: Number(val('lote-desc-valor')) || 0 },
-    precioManual: Number(val('lote-precio-manual')) || null,
-    condiciones: loteCondiciones.filter(c => (c.label || '').trim()).map(c => ({ label: c.label.trim(), tipo: c.tipo, valor: Number(c.valor) || 0 })),
-    moneda: val('lote-moneda') || 'ARS',
-    precioYa: precioYa ? Number(precioYa) : null,
-    yaHasta: val('lote-ya-hasta') || null,
-    entrega: val('lote-entrega'),
-    fotos: document.getElementById('lote-fotos').value.split('\n').map(x => x.trim()).filter(Boolean),
-    cliente: val('lote-cliente'),
-    validezDias: Number(val('lote-validez')) || null,
-    notasPdf: val('lote-notas-pdf'),
-    pdfFotos: !!document.getElementById('lote-pdf-fotos')?.checked,
-    pdfGanancia: !!document.getElementById('lote-pdf-ganancia')?.checked
-  };
-}
-
 async function guardarLote() {
   const err = document.getElementById('lote-error');
   const suc = document.getElementById('lote-success');
   err.classList.add('hidden'); suc.classList.add('hidden');
-  const datos = datosDesdeFormLote();
-  if (!datos.nombre || !datos.items.length || !datos.precio) { mostrarError(err, 'Nombre, al menos un producto y un precio de lote mayor a 0 son obligatorios.'); return; }
+  const nombre = val('lote-nombre'), precio = val('lote-precio');
+  const items = parseItemsLote(document.getElementById('lote-items').value);
+  if (!nombre || !precio || !items.length) { mostrarError(err, 'Nombre, productos y precio del lote son obligatorios.'); return; }
   const id = val('lote-id');
+  const precioYa = val('lote-precio-ya');
+  const datos = {
+    nombre, descripcion: val('lote-descripcion'),
+    items, precio: Number(precio),
+    moneda: val('lote-moneda') || 'ARS',
+    precioYa: precioYa ? Number(precioYa) : null,
+    yaHasta: val('lote-ya-hasta') || null,
+    entrega: val('lote-entrega'),
+    fotos: document.getElementById('lote-fotos').value.split('\n').map(x => x.trim()).filter(Boolean)
+  };
   try {
     if (id) { await db.collection('lotes').doc(id).update({ ...datos, editado: new Date().toISOString() }); }
     else    { await db.collection('lotes').add({ ...datos, vendido: false, fecha: new Date().toISOString() }); }
@@ -2512,34 +2307,19 @@ async function guardarLote() {
 }
 
 function limpiarFormLote() {
-  ['lote-id','lote-nombre','lote-descripcion','lote-precio-manual','lote-desc-valor','lote-precio-ya','lote-ya-hasta','lote-entrega','lote-fotos',
-   'lote-cliente','lote-validez','lote-notas-pdf','lote-buscar']
+  ['lote-id','lote-nombre','lote-descripcion','lote-items','lote-precio','lote-precio-ya','lote-ya-hasta','lote-entrega','lote-fotos']
     .forEach(i => setVal(i, ''));
-  setVal('lote-moneda', 'ARS'); setVal('lote-desc-tipo', '%'); setVal('lote-cat', '');
-  const f = document.getElementById('lote-pdf-fotos'); if (f) f.checked = true;
-  const g = document.getElementById('lote-pdf-ganancia'); if (g) g.checked = true;
-  loteItems = []; loteCondiciones = []; loteSel.clear();
-  renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
+  setVal('lote-moneda', 'ARS');
 }
 
 function editarLote(id) {
   const l = lotesCache.find(x => x.id === id);
   if (!l) return;
   setVal('lote-id', l.id); setVal('lote-nombre', l.nombre || ''); setVal('lote-descripcion', l.descripcion || '');
-  setVal('lote-moneda', l.moneda || 'ARS');
-  loteItems = (l.items || []).map(i => ({ productoId: i.productoId || null, nombre: i.nombre, cant: i.cant, reventa: i.reventa || 0, foto: i.foto || '' }));
-  loteCondiciones = (l.condiciones || []).map(c => ({ ...c }));
-  loteSel.clear();
-  // Lotes viejos (sin descGeneral) tenían el precio escrito a mano: lo respetamos como precio manual.
-  setVal('lote-desc-tipo', l.descGeneral?.tipo || '%');
-  setVal('lote-desc-valor', l.descGeneral?.valor || '');
-  setVal('lote-precio-manual', l.descGeneral ? (l.precioManual || '') : (l.precio || ''));
+  setVal('lote-items', (l.items || []).map(i => `${i.nombre} | ${i.cant} | ${i.reventa}`).join('\n'));
+  setVal('lote-precio', l.precio || ''); setVal('lote-moneda', l.moneda || 'ARS');
   setVal('lote-precio-ya', l.precioYa || ''); setVal('lote-ya-hasta', l.yaHasta ? l.yaHasta.slice(0, 16) : '');
   setVal('lote-entrega', l.entrega || ''); setVal('lote-fotos', (l.fotos || []).join('\n'));
-  setVal('lote-cliente', l.cliente || ''); setVal('lote-validez', l.validezDias || ''); setVal('lote-notas-pdf', l.notasPdf || '');
-  const f = document.getElementById('lote-pdf-fotos'); if (f) f.checked = l.pdfFotos !== false;
-  const g = document.getElementById('lote-pdf-ganancia'); if (g) g.checked = l.pdfGanancia !== false;
-  renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -2552,126 +2332,4 @@ async function eliminarLote(id) {
   if (!confirm('¿Eliminar este lote?')) return;
   await db.collection('lotes').doc(id).delete();
   cargarLotesAdmin();
-}
-
-// ════════════════════════════════════════════════
-// PDF / PRESUPUESTO DEL LOTE
-// (se abre una hoja lista para imprimir → "Guardar como PDF")
-// ════════════════════════════════════════════════
-function pdfDesdeFormLote() {
-  const err = document.getElementById('lote-error');
-  err.classList.add('hidden');
-  const d = datosDesdeFormLote();
-  if (!d.items.length) { mostrarError(err, 'Agregá productos al lote antes de generar el PDF.'); return; }
-  if (!d.nombre) d.nombre = 'Lote de productos';
-  generarPdfLote(d);
-}
-
-function miniaturaPdf(url) {
-  if (!url) return '';
-  // Cloudinary: pedimos una versión chica para que el PDF pese poco.
-  return url.includes('res.cloudinary.com') && url.includes('/upload/')
-    ? url.replace('/upload/', '/upload/w_160,h_160,c_fill,q_auto/') : url;
-}
-
-function generarPdfLote(l) {
-  if (!l) return;
-  const m   = l.moneda || 'ARS';
-  const fp  = n => n === 0 ? formatPrecio(1, m).replace('1', '0') : formatPrecio(n, m);
-  const items = l.items || [];
-  const unidades = items.reduce((a, i) => a + i.cant, 0);
-  const lista = items.reduce((a, i) => a + i.cant * (i.reventa || 0), 0);
-  const yaVigente = l.precioYa && l.yaHasta && new Date(l.yaHasta) > new Date();
-  const precio = l.precio;
-  const ahorroLote = Math.max(0, lista - precio);
-  const conFotos = l.pdfFotos !== false && items.some(i => i.foto);
-  const hoy = new Date();
-  const vence = l.validezDias ? new Date(hoy.getTime() + l.validezDias * 86400000) : null;
-  const fmtF = d => d.toLocaleDateString('es-AR');
-  const tienda = config.nombre || 'Comprá Aquí';
-  const wa = config.whatsapp || '';
-  const ganancia = lista - precio;
-  const roi = precio ? Math.round(ganancia / precio * 100) : 0;
-
-  const filas = items.map((i, n) => `<tr>
-      <td class="c">${n + 1}</td>
-      ${conFotos ? `<td class="c">${i.foto ? `<img src="${esc(miniaturaPdf(i.foto))}" alt="">` : ''}</td>` : ''}
-      <td>${esc(i.nombre)}</td>
-      <td class="c">${i.cant}</td>
-      <td class="r">${i.reventa ? fp(i.reventa) : '—'}</td>
-      <td class="r">${i.reventa ? fp(i.cant * i.reventa) : '—'}</td>
-    </tr>`).join('');
-
-  const condiciones = (l.condiciones || []).map(c => {
-    const fin = aplicarDescLote(precio, c.tipo, c.valor);
-    const desc = c.valor ? (c.tipo === '$' ? '− ' + fp(c.valor) : '− ' + c.valor + '%') : '—';
-    return `<tr><td>${esc(c.label)}</td><td class="c">${desc}</td><td class="r"><strong>${fp(fin)}</strong></td><td class="r">${precio - fin > 0 ? fp(precio - fin) : '—'}</td></tr>`;
-  }).join('');
-
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Presupuesto - ${esc(l.nombre)}</title>
-<style>
-  @page { size: A4; margin: 14mm; }
-  * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color:#111827; font-size:12px; line-height:1.45; margin:0; padding:16px; }
-  .barra { display:flex; gap:10px; justify-content:center; margin-bottom:16px; }
-  .barra button { padding:10px 18px; border:0; border-radius:8px; background:#4f46e5; color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
-  .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:3px solid #4f46e5; padding-bottom:10px; margin-bottom:14px; }
-  .marca { font-size:22px; font-weight:800; color:#4f46e5; }
-  .doc { text-align:right; }
-  .doc h1 { margin:0; font-size:16px; letter-spacing:1px; }
-  .muted { color:#6b7280; }
-  h2 { font-size:15px; margin:0 0 4px; }
-  table { width:100%; border-collapse:collapse; margin:10px 0 14px; }
-  th { background:#eef2ff; color:#3730a3; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; text-align:left; padding:7px 8px; }
-  td { padding:6px 8px; border-bottom:1px solid #e5e7eb; vertical-align:middle; }
-  thead { display:table-header-group; }
-  tr { page-break-inside:avoid; }
-  .c { text-align:center; } .r { text-align:right; }
-  td img { width:46px; height:46px; object-fit:cover; border-radius:6px; display:block; margin:auto; }
-  .tot { margin-left:auto; width:340px; }
-  .tot div { display:flex; justify-content:space-between; padding:4px 0; }
-  .tot .big { border-top:2px solid #4f46e5; margin-top:4px; padding-top:8px; font-size:17px; font-weight:800; color:#4f46e5; }
-  .caja { border:1px solid #c7d2fe; background:#f5f7ff; border-radius:8px; padding:10px 12px; margin:10px 0; page-break-inside:avoid; }
-  .ya { border-color:#f59e0b; background:#fffbeb; }
-  .verde { border-color:#86efac; background:#f0fdf4; }
-  .pie { margin-top:18px; font-size:10.5px; color:#6b7280; border-top:1px solid #e5e7eb; padding-top:8px; }
-  @media print { .barra { display:none; } body { padding:0; } }
-</style></head><body>
-<div class="barra"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
-<div class="head">
-  <div><div class="marca">${esc(tienda)}</div>${wa ? `<div class="muted">WhatsApp: +${esc(wa)}</div>` : ''}</div>
-  <div class="doc"><h1>PRESUPUESTO DE LOTE</h1>
-    <div>Fecha: ${fmtF(hoy)}</div>
-    ${vence ? `<div>Válido hasta: <strong>${fmtF(vence)}</strong></div>` : ''}
-    ${l.cliente ? `<div>Para: <strong>${esc(l.cliente)}</strong></div>` : ''}
-  </div>
-</div>
-<h2>${esc(l.nombre)}</h2>
-${l.descripcion ? `<div class="muted" style="white-space:pre-line">${esc(l.descripcion)}</div>` : ''}
-<table>
-  <thead><tr><th class="c">#</th>${conFotos ? '<th class="c">Foto</th>' : ''}<th>Producto</th><th class="c">Cant.</th><th class="r">Valor c/u</th><th class="r">Subtotal</th></tr></thead>
-  <tbody>${filas}</tbody>
-</table>
-<div class="tot">
-  <div><span>Total de unidades</span><span>${unidades}</span></div>
-  <div><span>Valor total de los productos</span><span>${fp(lista)}</span></div>
-  ${ahorroLote > 0 ? `<div><span>Descuento por llevar el lote completo</span><span>− ${fp(ahorroLote)}${lista ? ' (' + Math.round(ahorroLote / lista * 100) + '%)' : ''}</span></div>` : ''}
-  <div class="big"><span>PRECIO DEL LOTE</span><span>${fp(precio)}</span></div>
-  <div class="muted"><span>Costo promedio por unidad</span><span>${fp(unidades ? Math.round(precio / unidades) : 0)}</span></div>
-</div>
-${yaVigente ? `<div class="caja ya"><strong>⚡ Precio especial si confirmás antes del ${new Date(l.yaHasta).toLocaleString('es-AR', {dateStyle:'short', timeStyle:'short'})}:</strong> ${fp(l.precioYa)}</div>` : ''}
-${condiciones ? `<h2 style="margin-top:14px">Formas de pago y descuentos</h2>
-<table><thead><tr><th>Condición</th><th class="c">Descuento</th><th class="r">Precio final</th><th class="r">Ahorrás</th></tr></thead><tbody>${condiciones}</tbody></table>` : ''}
-${(l.pdfGanancia !== false && lista > 0) ? `<div class="caja verde"><strong>📈 Potencial de reventa:</strong> vendiendo los productos a su valor (${fp(lista)}) y pagando el lote ${fp(precio)}, el margen estimado es de <strong>${fp(ganancia)}</strong> (${roi}% sobre lo invertido). Aun vendiendo solo al 70%, el resultado estimado sería de ${fp(Math.round(lista * 0.7 - precio))}.</div>` : ''}
-${l.entrega ? `<div class="caja">🚚 <strong>Retiro / entrega:</strong> ${esc(l.entrega)}</div>` : ''}
-${l.notasPdf ? `<div class="caja"><strong>Condiciones:</strong><div style="white-space:pre-line">${esc(l.notasPdf)}</div></div>` : ''}
-<div class="pie">Los valores de reventa son estimaciones y pueden variar según la zona y el canal de venta. Los productos se entregan en el estado en que se encuentran, tal como se describe/fotografía. Presupuesto sujeto a disponibilidad.</div>
-<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 500); });<\/script>
-</body></html>`;
-
-  const w = window.open('', '_blank');
-  if (!w) { alert('El navegador bloqueó la ventana del PDF. Permití las ventanas emergentes para este sitio y probá de nuevo.'); return; }
-  w.document.open(); w.document.write(html); w.document.close();
 }

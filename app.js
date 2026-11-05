@@ -2285,6 +2285,7 @@ async function cargarLotesAdmin() {
       </div>
       <div class="admin-item-actions">
         <button class="btn-sm btn-sm-info" onclick="generarPdfLote(lotesCache.find(x=>x.id==='${l.id}'))">📄 PDF</button>
+        <button class="btn-sm btn-sm-info" onclick="generarCatalogoLote(lotesCache.find(x=>x.id==='${l.id}'))">📚 Catálogo</button>
         <button class="btn-sm btn-sm-primary" onclick="editarLote('${l.id}')">Editar</button>
         <button class="btn-sm btn-sm-warning" onclick="toggleLoteVendido('${l.id}', ${!!l.vendido})">${l.vendido ? 'Disponible' : 'Vendido'}</button>
         <button class="btn-sm btn-sm-danger" onclick="eliminarLote('${l.id}')">Eliminar</button>
@@ -2969,6 +2970,159 @@ ${bloqueCta}
   var f=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   var im=Array.prototype.map.call(document.images,function(i){ return i.complete?Promise.resolve():new Promise(function(r){ i.onload=i.onerror=r; }); });
   Promise.all([f].concat(im)).then(ir,ir); setTimeout(ir,6000); })();<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('El navegador bloqueó la ventana del PDF. Permití las ventanas emergentes para este sitio y probá de nuevo.'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+}
+
+
+// ════════════════════════════════════════════════
+// CATÁLOGO COMPLETO DEL LOTE (PDF)
+// Un producto por página: todas las fotos + todos los datos
+// (misma info que se ve al tocar "Ver" en un producto)
+// ════════════════════════════════════════════════
+function catalogoDesdeFormLote() {
+  const err = document.getElementById('lote-error');
+  err.classList.add('hidden');
+  const d = datosDesdeFormLote();
+  if (!d.items.length) { mostrarError(err, 'Agregá productos al lote antes de generar el catálogo.'); return; }
+  if (!d.nombre) d.nombre = 'Lote de productos';
+  generarCatalogoLote(d);
+}
+
+function fotoCatalogo(url, w) {
+  if (!url) return '';
+  return url.includes('res.cloudinary.com') && url.includes('/upload/')
+    ? url.replace('/upload/', '/upload/w_' + w + ',q_auto/') : url;
+}
+
+function generarCatalogoLote(l) {
+  if (!l) return;
+  const m = l.moneda || 'ARS';
+  const fp = n => formatPrecio(n, m);
+  const items = l.items || [];
+  const tienda = config.nombre || 'Comprá Aquí';
+  const wa = String(l.pdfWa || '').replace(/\D/g, '') || config.whatsapp || '';
+  const hoy = new Date().toLocaleDateString('es-AR');
+  const unidades = items.reduce((a, i) => a + (Number(i.cant) || 0), 0);
+
+  const paginas = items.map((it, n) => {
+    const p = it.productoId ? productosCache.find(x => x.id === it.productoId) : null;
+    const nombre = (p && p.nombre) || it.nombre || 'Producto';
+    let fotos = ((p && p.fotos) || []).filter(Boolean);
+    if (!fotos.length && it.foto) fotos = [it.foto];
+    const mp = (p && p.moneda) || m;
+
+    const specs = p ? [
+      ['Categoría', p.categoria], ['Estado', p.estado], ['Condición', p.condicion],
+      ['Medidas', p.medidas], ['Peso', p.peso ? p.peso + ' kg' : ''], ['¿Se desarma?', p.desarma],
+      ['Tipo', p.color], ['Color', p.colorProd], ['Material', p.materialProd],
+      ['Cantidad disponible', p.cantidad]
+    ].filter(x => x[1]) : [];
+
+    const principal = fotos[0]
+      ? `<div class="foto-main"><img src="${esc(fotoCatalogo(fotos[0], 1000))}" alt=""></div>` : '';
+    const resto = fotos.slice(1);
+    const grilla = resto.length
+      ? `<div class="foto-grid foto-g${resto.length === 1 ? '1' : resto.length === 2 ? '2' : '3'}">${resto.map(f => `<div><img src="${esc(fotoCatalogo(f, 600))}" alt=""></div>`).join('')}</div>` : '';
+
+    const precios = [];
+    precios.push(`<div><span>En el lote</span><strong>${it.cant} u.</strong></div>`);
+    if (it.reventa) {
+      precios.push(`<div><span>Valor c/u</span><strong>${fp(it.reventa)}</strong></div>`);
+      precios.push(`<div class="azul"><span>Subtotal</span><strong>${fp(it.cant * it.reventa)}</strong></div>`);
+    }
+    if (p && p.precioAnterior) precios.push(`<div><span>Precio de referencia</span><strong class="tach">${formatPrecio(p.precioAnterior, mp)}</strong></div>`);
+
+    const bloques = [];
+    if (p && p.exclusivo) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
+    if (p && p.descripcion) bloques.push(`<div class="txt"><h4>Descripción</h4><div>${esc(p.descripcion)}</div></div>`);
+    if (p && p.notas) bloques.push(`<div class="txt"><h4>Notas</h4><div>${esc(p.notas)}</div></div>`);
+    if (p && p.paraVos) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
+    if (p && p.testimonio) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
+
+    return `<section class="prod">
+      <div class="prod-head"><span class="num">${n + 1}</span><h2>${esc(nombre)}</h2></div>
+      <div class="precios">${precios.join('')}</div>
+      ${principal}${grilla}
+      ${specs.length ? `<div class="specs">${specs.map(s => `<div><span>${s[0]}</span><strong>${esc(s[1])}</strong></div>`).join('')}</div>` : ''}
+      ${bloques.join('')}
+    </section>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>Catálogo - ${esc(l.nombre)}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  :root { --navy:#0f172a; --navy2:#1e3a8a; --ink:#0f172a; --mut:#64748b; --line:#e2e8f0; }
+  body { font-family:'Inter','Helvetica Neue',Arial,sans-serif; color:var(--ink); font-size:11.5px; line-height:1.5; margin:0; padding:16px; }
+  .barra { display:flex; justify-content:center; margin-bottom:16px; }
+  .barra button { padding:10px 18px; border:0; border-radius:8px; background:var(--navy2); color:#fff; font-size:14px; font-weight:700; cursor:pointer; }
+  .portada { background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; border-radius:14px; padding:28px 28px 30px; margin-bottom:16px; page-break-after:always; break-after:page; min-height:250mm; display:flex; flex-direction:column; justify-content:center; }
+  .portada .k { font-size:11px; letter-spacing:3px; font-weight:600; color:#93c5fd; }
+  .portada h1 { font-size:34px; font-weight:800; line-height:1.15; margin:10px 0 8px; letter-spacing:-.5px; }
+  .portada .s { font-size:14px; color:#dbe4f5; }
+  .portada .nums { display:flex; gap:12px; margin-top:26px; }
+  .portada .nums div { background:#fff; color:var(--ink); border-radius:10px; padding:12px 18px; }
+  .portada .nums span { display:block; font-size:9px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); }
+  .portada .nums strong { font-size:22px; font-weight:800; color:var(--navy2); }
+  .portada .d { margin-top:22px; font-size:12px; color:#aebbd6; white-space:pre-line; }
+  .prod { page-break-before:always; break-before:page; }
+  .portada + .prod { page-break-before:auto; break-before:auto; }
+  .prod-head { display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; border-radius:12px; padding:12px 16px; margin-bottom:10px; break-after:avoid; }
+  .prod-head .num { background:#fff; color:var(--navy2); font-weight:800; border-radius:8px; min-width:34px; height:34px; display:flex; align-items:center; justify-content:center; padding:0 8px; }
+  .prod-head h2 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.2px; }
+  .precios { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr)); gap:8px; margin-bottom:10px; }
+  .precios div { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#fff; }
+  .precios .azul { background:#eff6ff; border-color:#bfdbfe; }
+  .precios span, .specs span { display:block; font-size:8.5px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); font-weight:500; }
+  .precios strong { font-size:15px; font-weight:800; color:var(--navy2); }
+  .tach { text-decoration:line-through; color:#dc2626 !important; }
+  .foto-main { background:#f1f5f9; border-radius:12px; text-align:center; margin-bottom:8px; break-inside:avoid; }
+  .foto-main img { max-width:100%; max-height:105mm; object-fit:contain; display:block; margin:auto; border-radius:12px; }
+  .foto-grid { display:grid; gap:8px; margin-bottom:10px; }
+  .foto-g1 { grid-template-columns:1fr; } .foto-g2 { grid-template-columns:1fr 1fr; } .foto-g3 { grid-template-columns:repeat(3,1fr); }
+  .foto-grid div { background:#f1f5f9; border-radius:10px; break-inside:avoid; }
+  .foto-grid img { width:100%; height:48mm; object-fit:contain; display:block; border-radius:10px; }
+  .foto-g1 img { height:70mm; }
+  .specs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+  .specs div { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#f8fafc; break-inside:avoid; }
+  .specs strong { font-size:12px; font-weight:600; }
+  .txt { border:1px solid var(--line); background:#f8fafc; border-radius:10px; padding:10px 12px; margin-bottom:8px; break-inside:avoid; }
+  .txt h4 { margin:0 0 4px; font-size:9.5px; text-transform:uppercase; letter-spacing:1px; color:var(--navy2); font-weight:700; }
+  .txt div { white-space:pre-wrap; word-break:break-word; color:#334155; }
+  .nota { background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:8px 12px; margin-bottom:8px; }
+  .cierre { page-break-before:always; break-before:page; background:#0f172a; color:#fff; border-radius:14px; padding:26px; text-align:center; }
+  .cierre h3 { margin:0 0 6px; font-size:20px; font-weight:800; }
+  .cierre .n { font-size:28px; font-weight:800; color:#93c5fd; margin:6px 0; }
+  .cierre a { display:inline-block; background:#25d366; color:#fff; text-decoration:none; font-weight:700; padding:9px 20px; border-radius:999px; }
+  .pie { margin-top:12px; font-size:9.5px; color:var(--mut); }
+  @media print { .barra { display:none; } body { padding:0; } }
+</style></head><body>
+<div class="barra"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
+<div class="portada">
+  <div class="k">CATÁLOGO COMPLETO</div>
+  <h1>${esc(l.nombre)}</h1>
+  <div class="s">${esc(tienda)}${l.cliente ? ' · Para ' + esc(l.cliente) : ''} · ${hoy}</div>
+  <div class="nums">
+    <div><span>Productos</span><strong>${items.length}</strong></div>
+    <div><span>Unidades</span><strong>${unidades}</strong></div>
+  </div>
+  ${l.descripcion ? `<div class="d">${esc(l.descripcion)}</div>` : ''}
+</div>
+${paginas}
+${wa ? `<div class="cierre"><h3>¿Te interesa este lote?</h3><div class="n">+${esc(wa)}</div><a href="https://wa.me/${esc(wa)}?text=${encodeURIComponent('Hola! Vi el catálogo del lote "' + l.nombre + '" y me interesa.')}">Escribime por WhatsApp</a></div>` : ''}
+<div class="pie">Los productos se entregan en el estado en que se encuentran, tal como se describe y fotografía. Sujeto a disponibilidad.</div>
+<script>(function(){ var hecho=false; function ir(){ if(hecho) return; hecho=true; setTimeout(function(){ window.print(); }, 300); }
+  var f=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
+  var im=Array.prototype.map.call(document.images,function(i){ return i.complete?Promise.resolve():new Promise(function(r){ i.onload=i.onerror=r; }); });
+  Promise.all([f].concat(im)).then(ir,ir); setTimeout(ir,15000); })();<\/script>
 </body></html>`;
 
   const w = window.open('', '_blank');

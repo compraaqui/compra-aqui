@@ -2498,7 +2498,8 @@ function datosDesdeFormLote() {
     pdfWa: val('lote-pdf-wa'),
     pdfDias: Number(val('lote-pdf-dias')) || null,
     pdfGancho: val('lote-pdf-gancho'),
-    pdfVentajas: val('lote-pdf-ventajas')
+    pdfVentajas: val('lote-pdf-ventajas'),
+    catOpc: {fotos: !!document.getElementById('cat-fotos')?.checked, cantidad: !!document.getElementById('cat-cantidad')?.checked, precios: !!document.getElementById('cat-precios')?.checked, ref: !!document.getElementById('cat-ref')?.checked, specs: !!document.getElementById('cat-specs')?.checked, desc: !!document.getElementById('cat-desc')?.checked, notas: !!document.getElementById('cat-notas')?.checked}
   };
 }
 
@@ -2526,6 +2527,7 @@ function limpiarFormLote() {
   const g = document.getElementById('lote-pdf-ganancia'); if (g) g.checked = true;
   ['lote-pdf-wa','lote-pdf-dias','lote-pdf-gancho','lote-pdf-ventajas'].forEach(i => setVal(i, ''));
   const gr = document.getElementById('lote-pdf-graficos'); if (gr) gr.checked = true;
+  ['cat-fotos','cat-cantidad','cat-precios','cat-ref','cat-specs','cat-desc','cat-notas'].forEach(id => { const c = document.getElementById(id); if (c) c.checked = true; });
   loteItems = []; loteCondiciones = []; loteSel.clear();
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
 }
@@ -2550,6 +2552,7 @@ function editarLote(id) {
   const gr = document.getElementById('lote-pdf-graficos'); if (gr) gr.checked = l.pdfGraficos !== false;
   setVal('lote-pdf-wa', l.pdfWa || ''); setVal('lote-pdf-dias', l.pdfDias || '');
   setVal('lote-pdf-gancho', l.pdfGancho || ''); setVal('lote-pdf-ventajas', l.pdfVentajas || '');
+  [['cat-fotos','fotos'],['cat-cantidad','cantidad'],['cat-precios','precios'],['cat-ref','ref'],['cat-specs','specs'],['cat-desc','desc'],['cat-notas','notas']].forEach(([id,k]) => { const c = document.getElementById(id); if (c) c.checked = !l.catOpc || l.catOpc[k] !== false; });
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3007,6 +3010,7 @@ function generarCatalogoLote(l) {
   const wa = String(l.pdfWa || '').replace(/\D/g, '') || config.whatsapp || '';
   const hoy = new Date().toLocaleDateString('es-AR');
   const unidades = items.reduce((a, i) => a + (Number(i.cant) || 0), 0);
+  const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true }, l.catOpc || {});
 
   const paginas = items.map((it, n) => {
     const p = it.productoId ? productosCache.find(x => x.id === it.productoId) : null;
@@ -3015,38 +3019,35 @@ function generarCatalogoLote(l) {
     if (!fotos.length && it.foto) fotos = [it.foto];
     const mp = (p && p.moneda) || m;
 
-    const specs = p ? [
+    const specs = (op.specs && p) ? [
       ['Categoría', p.categoria], ['Estado', p.estado], ['Condición', p.condicion],
       ['Medidas', p.medidas], ['Peso', p.peso ? p.peso + ' kg' : ''], ['¿Se desarma?', p.desarma],
       ['Tipo', p.color], ['Color', p.colorProd], ['Material', p.materialProd],
       ['Cantidad disponible', p.cantidad]
     ].filter(x => x[1]) : [];
 
-    const principal = fotos[0]
-      ? `<div class="foto-main"><img src="${esc(fotoCatalogo(fotos[0], 1000))}" alt=""></div>` : '';
-    const resto = fotos.slice(1);
-    const grilla = resto.length
-      ? `<div class="foto-grid foto-g${resto.length === 1 ? '1' : resto.length === 2 ? '2' : '3'}">${resto.map(f => `<div><img src="${esc(fotoCatalogo(f, 600))}" alt=""></div>`).join('')}</div>` : '';
+    const grilla = (op.fotos && fotos.length)
+      ? `<div class="foto-grid">${fotos.map(f => `<div><img src="${esc(fotoCatalogo(f, 900))}" alt=""></div>`).join('')}</div>` : '';
 
     const precios = [];
-    precios.push(`<div><span>En el lote</span><strong>${it.cant} u.</strong></div>`);
-    if (it.reventa) {
+    if (op.cantidad) precios.push(`<div><span>En el lote</span><strong>${it.cant} u.</strong></div>`);
+    if (op.precios && it.reventa) {
       precios.push(`<div><span>Valor c/u</span><strong>${fp(it.reventa)}</strong></div>`);
       precios.push(`<div class="azul"><span>Subtotal</span><strong>${fp(it.cant * it.reventa)}</strong></div>`);
     }
-    if (p && p.precioAnterior) precios.push(`<div><span>Precio de referencia</span><strong class="tach">${formatPrecio(p.precioAnterior, mp)}</strong></div>`);
+    if (op.ref && p && p.precioAnterior) precios.push(`<div><span>Precio de referencia</span><strong class="tach">${formatPrecio(p.precioAnterior, mp)}</strong></div>`);
 
     const bloques = [];
-    if (p && p.exclusivo) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
-    if (p && p.descripcion) bloques.push(`<div class="txt"><h4>Descripción</h4><div>${esc(p.descripcion)}</div></div>`);
-    if (p && p.notas) bloques.push(`<div class="txt"><h4>Notas</h4><div>${esc(p.notas)}</div></div>`);
-    if (p && p.paraVos) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
-    if (p && p.testimonio) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
+    if (op.desc && p && p.exclusivo) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
+    if (op.desc && p && p.descripcion) bloques.push(`<div class="txt"><h4>Descripción</h4><div>${esc(p.descripcion)}</div></div>`);
+    if (op.notas && p && p.notas) bloques.push(`<div class="txt"><h4>Notas</h4><div>${esc(p.notas)}</div></div>`);
+    if (op.desc && p && p.paraVos) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
+    if (op.desc && p && p.testimonio) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
 
     return `<section class="prod">
       <div class="prod-head"><span class="num">${n + 1}</span><h2>${esc(nombre)}</h2></div>
-      <div class="precios">${precios.join('')}</div>
-      ${principal}${grilla}
+      ${precios.length ? `<div class="precios">${precios.join('')}</div>` : ''}
+      ${grilla}
       ${specs.length ? `<div class="specs">${specs.map(s => `<div><span>${s[0]}</span><strong>${esc(s[1])}</strong></div>`).join('')}</div>` : ''}
       ${bloques.join('')}
     </section>`;
@@ -3084,13 +3085,9 @@ function generarCatalogoLote(l) {
   .precios span, .specs span { display:block; font-size:8.5px; text-transform:uppercase; letter-spacing:1px; color:var(--mut); font-weight:500; }
   .precios strong { font-size:15px; font-weight:800; color:var(--navy2); }
   .tach { text-decoration:line-through; color:#dc2626 !important; }
-  .foto-main { background:#f1f5f9; border-radius:12px; text-align:center; margin-bottom:8px; break-inside:avoid; }
-  .foto-main img { max-width:100%; max-height:105mm; object-fit:contain; display:block; margin:auto; border-radius:12px; }
-  .foto-grid { display:grid; gap:8px; margin-bottom:10px; }
-  .foto-g1 { grid-template-columns:1fr; } .foto-g2 { grid-template-columns:1fr 1fr; } .foto-g3 { grid-template-columns:repeat(3,1fr); }
-  .foto-grid div { background:#f1f5f9; border-radius:10px; break-inside:avoid; }
-  .foto-grid img { width:100%; height:48mm; object-fit:contain; display:block; border-radius:10px; }
-  .foto-g1 img { height:70mm; }
+  .foto-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .foto-grid div { background:#f1f5f9; border-radius:10px; overflow:hidden; break-inside:avoid; aspect-ratio:4/3; }
+  .foto-grid img { width:100%; height:100%; object-fit:cover; display:block; }
   .specs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
   .specs div { border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:#f8fafc; break-inside:avoid; }
   .specs strong { font-size:12px; font-weight:600; }

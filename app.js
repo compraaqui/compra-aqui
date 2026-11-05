@@ -2499,7 +2499,7 @@ function datosDesdeFormLote() {
     pdfDias: Number(val('lote-pdf-dias')) || null,
     pdfGancho: val('lote-pdf-gancho'),
     pdfVentajas: val('lote-pdf-ventajas'),
-    catOpc: {fotos: !!document.getElementById('cat-fotos')?.checked, cantidad: !!document.getElementById('cat-cantidad')?.checked, precios: !!document.getElementById('cat-precios')?.checked, ref: !!document.getElementById('cat-ref')?.checked, specs: !!document.getElementById('cat-specs')?.checked, desc: !!document.getElementById('cat-desc')?.checked, notas: !!document.getElementById('cat-notas')?.checked}
+    catOpc: {fotos: !!document.getElementById('cat-fotos')?.checked, cantidad: !!document.getElementById('cat-cantidad')?.checked, precios: !!document.getElementById('cat-precios')?.checked, ref: !!document.getElementById('cat-ref')?.checked, specs: !!document.getElementById('cat-specs')?.checked, desc: !!document.getElementById('cat-desc')?.checked, notas: !!document.getElementById('cat-notas')?.checked, tema: (document.getElementById('cat-tema')?.value === 'oscuro' ? 'oscuro' : 'claro')}
   };
 }
 
@@ -2528,6 +2528,7 @@ function limpiarFormLote() {
   ['lote-pdf-wa','lote-pdf-dias','lote-pdf-gancho','lote-pdf-ventajas'].forEach(i => setVal(i, ''));
   const gr = document.getElementById('lote-pdf-graficos'); if (gr) gr.checked = true;
   ['cat-fotos','cat-cantidad','cat-precios','cat-ref','cat-specs','cat-desc','cat-notas'].forEach(id => { const c = document.getElementById(id); if (c) c.checked = true; });
+  setVal('cat-tema', 'claro');
   loteItems = []; loteCondiciones = []; loteSel.clear();
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
 }
@@ -2553,6 +2554,7 @@ function editarLote(id) {
   setVal('lote-pdf-wa', l.pdfWa || ''); setVal('lote-pdf-dias', l.pdfDias || '');
   setVal('lote-pdf-gancho', l.pdfGancho || ''); setVal('lote-pdf-ventajas', l.pdfVentajas || '');
   [['cat-fotos','fotos'],['cat-cantidad','cantidad'],['cat-precios','precios'],['cat-ref','ref'],['cat-specs','specs'],['cat-desc','desc'],['cat-notas','notas']].forEach(([id,k]) => { const c = document.getElementById(id); if (c) c.checked = !l.catOpc || l.catOpc[k] !== false; });
+  setVal('cat-tema', (l.catOpc && l.catOpc.tema) || 'claro');
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -3010,7 +3012,30 @@ function generarCatalogoLote(l) {
   const wa = String(l.pdfWa || '').replace(/\D/g, '') || config.whatsapp || '';
   const hoy = new Date().toLocaleDateString('es-AR');
   const unidades = items.reduce((a, i) => a + (Number(i.cant) || 0), 0);
-  const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true }, l.catOpc || {});
+  const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true, tema:'claro' }, l.catOpc || {});
+
+  const oscuro = op.tema === 'oscuro';
+  const cssOscuro = oscuro ? `
+  html, body { background:#080c14; color:#e2e8f0; }
+  .portada, .prod-head { border:1px solid rgba(147,197,253,.18); }
+  .portada .nums div { background:#0d1220; border:1px solid rgba(99,102,241,.28); }
+  .portada .nums span { color:#94a3b8; }
+  .portada .nums strong { color:#93c5fd; }
+  .prod-head .num { background:rgba(255,255,255,.14); color:#fff; }
+  .precios div { background:#0d1220; border-color:rgba(255,255,255,.08); }
+  .precios .azul { background:rgba(37,99,235,.2); border-color:#1e40af; }
+  .precios span, .specs span { color:#94a3b8; }
+  .precios strong { color:#93c5fd; }
+  .tach { color:#f87171 !important; }
+  .foto-grid div { background:#000; }
+  .specs div, .txt { background:#0d1220; border-color:rgba(255,255,255,.08); }
+  .specs strong { color:#f1f5f9; }
+  .txt h4 { color:#93c5fd; }
+  .txt div { color:#cbd5e1; }
+  .nota { background:rgba(37,99,235,.16); border-color:#1e40af; color:#dbe4f5; }
+  .cierre { background:#0d1220; border:1px solid rgba(147,197,253,.18); }
+  .pie { color:#64748b; }
+  ` : '';
 
   const paginas = items.map((it, n) => {
     const p = it.productoId ? productosCache.find(x => x.id === it.productoId) : null;
@@ -3101,7 +3126,7 @@ function generarCatalogoLote(l) {
   .cierre a { display:inline-block; background:#25d366; color:#fff; text-decoration:none; font-weight:700; padding:9px 20px; border-radius:999px; }
   .pie { margin-top:12px; font-size:9.5px; color:var(--mut); }
   @media print { .barra { display:none; } body { padding:0; } }
-</style></head><body>
+${cssOscuro}</style></head><body>
 <div class="barra"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
 <div class="portada">
   <div class="k">CATÁLOGO COMPLETO</div>

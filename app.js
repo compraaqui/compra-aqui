@@ -2618,6 +2618,7 @@ function generarPdfLote(l) {
   const fmtF = d => d.toLocaleDateString('es-AR');
   const tienda = config.nombre || 'Comprá Aquí';
   const wa = String(l.pdfWa || '').replace(/\D/g, '');
+  const waTxt = String(l.pdfWa || '').trim();   // se muestra EXACTAMENTE como lo escribiste
   const ganancia = lista - precio;
   const roi = precio ? Math.round(ganancia / precio * 100) : 0;
 
@@ -2662,7 +2663,7 @@ function generarPdfLote(l) {
   const equilibrio = lista ? Math.min(100, Math.round(pBest / lista * 100)) : 0;   // % del lote que hay que vender para recuperar lo invertido
   const pct = n => Math.max(0, Math.min(100, n));
   const waLimpio = String(wa).replace(/\D/g, '');
-  const waFmt = waLimpio ? '+' + waLimpio : '';
+  const waFmt = waLimpio ? waTxt : '';
   const waMsg = encodeURIComponent('Hola! Vi el presupuesto del lote "' + l.nombre + '" y quiero comprarlo.');
   const waLinkPdf = waLimpio ? 'https://wa.me/' + waLimpio + '?text=' + waMsg : '';
 
@@ -3057,7 +3058,7 @@ function generarPdfLote(l) {
   .pasos h4 { font-size:15px; } .pasos .n { font-size:22px; } .pasos b { width:26px; height:26px; line-height:26px; font-size:13px; }
   .conf strong { font-size:14px; } .conf span { font-size:13px; }
   .caja { font-size:14px; }
-  .cta { padding:26px; } .cta-t { font-size:23px; font-weight:800; } .cta-n { font-size:40px; } .cta-b { font-size:18px; padding:12px 30px; }
+  .cta { padding:26px; } .cta-t { font-size:23px; font-weight:800; } .cta-n { font-size:20px; letter-spacing:.5px; } .cta-b { font-size:18px; padding:12px 30px; }
   .pie { font-size:12px; }
   .cta-frase { font-size:20px; line-height:1.45; margin:12px 0 14px; }
   .cta-frase b { background:#fff; color:#065f46; padding:1px 10px; border-radius:8px; font-weight:800; }
@@ -3076,7 +3077,7 @@ function generarPdfLote(l) {
 </style></head><body>
 <div class="barra"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
 <div class="head">
-  <div><div class="marca">${esc(tienda)}</div>${wa ? `<div class="muted">WhatsApp: +${esc(wa)}</div>` : ''}</div>
+  <div><div class="marca">${esc(tienda)}</div>${wa ? `<div class="muted">WhatsApp: ${esc(waTxt)}</div>` : ''}</div>
   <div class="doc"><h1>PRESUPUESTO DE LOTE</h1>
     <div class="ref">N.º ${refNum}</div>
     <div>Fecha: ${fmtF(hoy)}</div>
@@ -3163,6 +3164,7 @@ function generarCatalogoLote(l) {
   const items = l.items || [];
   const tienda = config.nombre || 'Comprá Aquí';
   const wa = String(l.pdfWa || '').replace(/\D/g, '');
+  const waTxt = String(l.pdfWa || '').trim();
   const hoy = new Date().toLocaleDateString('es-AR');
   const unidades = items.reduce((a, i) => a + (Number(i.cant) || 0), 0);
   const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true, tema:'claro', calidad:'media' }, l.catOpc || {});
@@ -3290,7 +3292,7 @@ function generarCatalogoLote(l) {
   .nota { background:#eff6ff; border:1px solid #bfdbfe; border-radius:10px; padding:8px 12px; margin-bottom:8px; }
   .cierre { page-break-before:always; break-before:page; background:#0f172a; color:#fff; border-radius:14px; padding:26px; text-align:center; }
   .cierre h3 { margin:0 0 6px; font-size:20px; font-weight:800; }
-  .cierre .n { font-size:28px; font-weight:800; color:#93c5fd; margin:6px 0; }
+  .cierre .n { font-size:18px; font-weight:800; color:#93c5fd; margin:6px 0; }
   .cierre a { display:inline-block; background:#25d366; color:#fff; text-decoration:none; font-weight:700; padding:9px 20px; border-radius:999px; }
   .pie { margin-top:12px; font-size:9.5px; color:var(--mut); }
   @media print { .barra { display:none; } body { padding:0; } }
@@ -3307,7 +3309,7 @@ ${cssOscuro}</style></head><body>
   ${l.descripcion ? `<div class="d">${esc(l.descripcion)}</div>` : ''}
 </div>
 ${paginas}
-${wa ? `<div class="cierre"><h3>¿Te interesa este lote?</h3><div class="n">+${esc(wa)}</div><a href="https://wa.me/${esc(wa)}?text=${encodeURIComponent('Hola! Vi el catálogo del lote "' + l.nombre + '" y me interesa.')}">Escribime por WhatsApp</a></div>` : ''}
+${wa ? `<div class="cierre"><h3>¿Te interesa este lote?</h3><div class="n">${esc(waTxt)}</div><a href="https://wa.me/${esc(wa)}?text=${encodeURIComponent('Hola! Vi el catálogo del lote "' + l.nombre + '" y me interesa.')}">Escribime por WhatsApp</a></div>` : ''}
 <div class="pie">Los productos se entregan en el estado en que se encuentran, tal como se describe y fotografía. Sujeto a disponibilidad.</div>
 <script>(function(){ var hecho=false; function ir(){ if(hecho) return; hecho=true; setTimeout(function(){ window.print(); }, 300); }
   var f=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();

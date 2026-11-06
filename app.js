@@ -2507,6 +2507,7 @@ function datosDesdeFormLote() {
     pdfDias: Number(val('lote-pdf-dias')) || null,
     pdfGancho: val('lote-pdf-gancho'),
     pdfVentajas: val('lote-pdf-ventajas'),
+    pdfLegal: val('lote-pdf-legal'),
     catOpc: {fotos: !!document.getElementById('cat-fotos')?.checked, cantidad: !!document.getElementById('cat-cantidad')?.checked, precios: !!document.getElementById('cat-precios')?.checked, ref: !!document.getElementById('cat-ref')?.checked, specs: !!document.getElementById('cat-specs')?.checked, desc: !!document.getElementById('cat-desc')?.checked, notas: !!document.getElementById('cat-notas')?.checked, tema: (document.getElementById('cat-tema')?.value === 'oscuro' ? 'oscuro' : 'claro'), calidad: (document.getElementById('cat-calidad')?.value || 'media')}
   };
 }
@@ -2533,7 +2534,7 @@ function limpiarFormLote() {
   setVal('lote-moneda', 'ARS'); setVal('lote-desc-tipo', '%'); setVal('lote-cat', '');
   const f = document.getElementById('lote-pdf-fotos'); if (f) f.checked = true;
   const g = document.getElementById('lote-pdf-ganancia'); if (g) g.checked = true;
-  ['lote-pdf-wa','lote-pdf-dias','lote-pdf-gancho','lote-pdf-ventajas'].forEach(i => setVal(i, ''));
+  ['lote-pdf-wa','lote-pdf-dias','lote-pdf-gancho','lote-pdf-ventajas','lote-pdf-legal'].forEach(i => setVal(i, ''));
   const gr = document.getElementById('lote-pdf-graficos'); if (gr) gr.checked = true;
   ['cat-fotos','cat-cantidad','cat-precios','cat-ref','cat-specs','cat-desc','cat-notas'].forEach(id => { const c = document.getElementById(id); if (c) c.checked = true; });
   setVal('cat-tema', 'claro'); setVal('cat-calidad', 'media');
@@ -2560,7 +2561,7 @@ function editarLote(id) {
   const g = document.getElementById('lote-pdf-ganancia'); if (g) g.checked = l.pdfGanancia !== false;
   const gr = document.getElementById('lote-pdf-graficos'); if (gr) gr.checked = l.pdfGraficos !== false;
   setVal('lote-pdf-wa', l.pdfWa || ''); setVal('lote-pdf-dias', l.pdfDias || '');
-  setVal('lote-pdf-gancho', l.pdfGancho || ''); setVal('lote-pdf-ventajas', l.pdfVentajas || '');
+  setVal('lote-pdf-gancho', l.pdfGancho || ''); setVal('lote-pdf-ventajas', l.pdfVentajas || ''); setVal('lote-pdf-legal', l.pdfLegal || '');
   [['cat-fotos','fotos'],['cat-cantidad','cantidad'],['cat-precios','precios'],['cat-ref','ref'],['cat-specs','specs'],['cat-desc','desc'],['cat-notas','notas']].forEach(([id,k]) => { const c = document.getElementById(id); if (c) c.checked = !l.catOpc || l.catOpc[k] !== false; });
   setVal('cat-tema', (l.catOpc && l.catOpc.tema) || 'claro'); setVal('cat-calidad', (l.catOpc && l.catOpc.calidad) || 'media');
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
@@ -2597,6 +2598,8 @@ function miniaturaPdf(url) {
   return url.includes('res.cloudinary.com') && url.includes('/upload/')
     ? url.replace('/upload/', '/upload/w_160,h_160,c_fill,q_auto/') : url;
 }
+
+const TXT_LEGAL_PDF_DEF = 'Los valores de reventa son estimaciones y pueden variar según la zona y el canal de venta. Los productos se entregan en el estado en que se encuentran, tal como se describe/fotografía. Presupuesto sujeto a disponibilidad.';
 
 function generarPdfLote(l) {
   if (!l) return;
@@ -2660,7 +2663,7 @@ function generarPdfLote(l) {
   const pct = n => Math.max(0, Math.min(100, n));
   const waLimpio = String(wa).replace(/\D/g, '');
   const waFmt = waLimpio ? '+' + waLimpio : '';
-  const waMsg = encodeURIComponent('Hola! Vi el presupuesto del lote "' + l.nombre + '" y quiero reservarlo.');
+  const waMsg = encodeURIComponent('Hola! Vi el presupuesto del lote "' + l.nombre + '" y quiero comprarlo.');
   const waLinkPdf = waLimpio ? 'https://wa.me/' + waLimpio + '?text=' + waMsg : '';
 
   // Gráfico 1: lo que pagás vs. lo que vale
@@ -2765,9 +2768,19 @@ function generarPdfLote(l) {
   ${(verGan && grafRecupero) ? `<div class="caja graf verde"><h3>Recuperás tu inversión rápido (proyección ilustrativa a ${l.pdfDias} días)</h3>${grafRecupero}<div class="nota-g">Supone un ritmo de ventas constante hasta vender todo el lote en ${l.pdfDias} días. Es una estimación, no una garantía.</div></div>` : ''}
   ${ventajas.length ? `<h2 class="sec">Por qué conviene este lote</h2><div class="caja ventajas"><ul>${ventajas.map(v => `<li>${v}</li>`).join('')}</ul></div>` : ''}` : '';
 
+  const margenSeg = (equilibrio > 0 && equilibrio < 100) ? 100 - equilibrio : 0;
+  const ctaConGanancia = verGan && gBest > 0;
   const bloqueCta = persuasivo ? `<div class="cta">
-    <div class="cta-t">¡Es ganar-ganar! ¿Lo reservamos? ${yaEsMejor ? (finYa ? 'El súper precio de ' + fp(pYa) + ' vence el ' + finYaTxt + '.' : 'Reservalo ya y quedate con el súper precio de ' + fp(pYa) + '.') : (vence ? 'El presupuesto vence el ' + fmtF(vence) + '.' : '')}</div>
-    ${waFmt ? `<div class="cta-n">${esc(waFmt)}</div><a class="cta-b" href="${esc(waLinkPdf)}">Escribime por WhatsApp</a>` : ''}
+    <div class="cta-t">¡Es ganar-ganar!</div>
+    ${ctaConGanancia ? `<div class="cta-frase">Con una ganancia de <b class="nw">${fp(gBest)}</b>${roiBest > 0 ? ' y un retorno sobre lo invertido de <b class="nw">+' + roiBest + '%</b>' : ''}, esta oportunidad es demasiado buena para dejarla pasar.</div>
+    <div class="cta-kpis">
+      <div><span>Retorno sobre lo invertido</span><strong class="nw">+${roiBest}%</strong></div>
+      ${margenSeg > 0 ? `<div><span>Margen de seguridad</span><strong class="nw">${margenSeg}%</strong></div>` : ''}
+      <div class="ok"><span>Tu ganancia estimada</span><strong class="nw">${fp(gBest)}</strong></div>
+    </div>
+    ${margenSeg > 0 ? `<div class="cta-seg">Un margen de seguridad del <b>${margenSeg}%</b> es elevado: el precio de reventa puede bajar bastante antes de que dejes de ganar.</div>` : ''}` : ''}
+    <div class="cta-ya">${yaEsMejor ? 'Comunicate ahora y quedate con el SÚPER PRECIO de <b class="nw">' + fp(pYa) + '</b>' + (finYa ? '<div class="cta-venc">Vence el ' + esc(finYaTxt) + ' · ' + esc(quedaTxt) + '</div>' : '') : 'Comunicate ahora y quedate con el mejor precio de <b class="nw">' + fp(pBest) + '</b>' + (vence ? '<div class="cta-venc">Presupuesto válido hasta el ' + fmtF(vence) + '</div>' : '')}</div>
+    ${waFmt ? `<div class="cta-n">${esc(waFmt)}</div><a class="cta-b" href="${esc(waLinkPdf)}">¡Quiero comprarlo ahora!</a>` : ''}
   </div>` : '';
 
 
@@ -2787,7 +2800,7 @@ function generarPdfLote(l) {
       ${unicas > 0 ? `<div><strong>${unicas}</strong><span>piezas de unidad única</span></div>` : ''}
       ${diasVig > 0 ? `<div class="gold"><strong>${diasVig}</strong><span>${diasVig === 1 ? 'día' : 'días'} de precio garantizado</span></div>` : ''}
     </div>
-    <div class="unico-p">Sujeto a disponibilidad: una vez reservado, el lote deja de estar disponible para otros compradores.</div>
+    <div class="unico-p">Sujeto a disponibilidad: una vez vendido, el lote deja de estar disponible para otros compradores.</div>
   </div>` : '';
 
   const bloqueGanando = (persuasivo && verGan && gBest > 0) ? `<div class="gana">
@@ -2820,7 +2833,7 @@ function generarPdfLote(l) {
 
   const bloqueSimple = persuasivo ? `<h2 class="sec">Así de simple</h2>
   <div class="pasos">
-    <div><b>1</b><h4>Reservás el lote completo</h4>${pBest ? `<p class="n">${fp(pBest)}</p>` : ''}</div>
+    <div><b>1</b><h4>Comprás el lote completo</h4>${pBest ? `<p class="n">${fp(pBest)}</p>` : ''}</div>
     <div class="flecha">→</div>
     <div><b>2</b><h4>Lo revendés, cerrado o por partes</h4>${(verGan && lista) ? `<p class="n">${fp(lista)}</p>` : ''}</div>
     <div class="flecha">→</div>
@@ -3046,6 +3059,19 @@ function generarPdfLote(l) {
   .caja { font-size:14px; }
   .cta { padding:26px; } .cta-t { font-size:23px; font-weight:800; } .cta-n { font-size:40px; } .cta-b { font-size:18px; padding:12px 30px; }
   .pie { font-size:12px; }
+  .cta-frase { font-size:20px; line-height:1.45; margin:12px 0 14px; }
+  .cta-frase b { background:#fff; color:#065f46; padding:1px 10px; border-radius:8px; font-weight:800; }
+  .cta-kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin:10px 0; }
+  .cta-kpis div { background:rgba(255,255,255,.12); border:1px solid rgba(147,197,253,.35); border-radius:10px; padding:10px 8px; }
+  .cta-kpis .ok { background:#ecfdf5; border-color:#a7f3d0; }
+  .cta-kpis span { display:block; font-size:11.5px; text-transform:uppercase; letter-spacing:1px; opacity:.9; }
+  .cta-kpis strong { display:block; font-size:30px; font-weight:800; margin-top:2px; color:#93c5fd; }
+  .cta-kpis .ok span { color:#065f46; opacity:1; } .cta-kpis .ok strong { color:#047857; }
+  .cta-seg { font-size:15px; margin:6px 0 10px; color:#dbe4f5; }
+  .cta-seg b { color:#6ee7b7; }
+  .cta-ya { font-size:24px; font-weight:800; line-height:1.35; margin:14px 0 4px; }
+  .cta-ya b { background:#fff; color:#065f46; padding:2px 14px; border-radius:10px; font-size:34px; }
+  .cta-venc { font-size:14px; font-weight:700; color:#93c5fd; margin-top:6px; }
   @media (max-width:640px) { .pot-g { grid-template-columns:1fr; } }
 </style></head><body>
 <div class="barra"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
@@ -3097,7 +3123,7 @@ ${bloqueConfianza}
 ${l.entrega ? `<div class="caja"><strong>Retiro / entrega:</strong> ${esc(l.entrega)}</div>` : ''}
 ${l.notasPdf ? `<div class="caja"><strong>Condiciones:</strong><div style="white-space:pre-line">${esc(l.notasPdf)}</div></div>` : ''}
 ${bloqueCta}
-<div class="pie">Los valores de reventa son estimaciones y pueden variar según la zona y el canal de venta. Los productos se entregan en el estado en que se encuentran, tal como se describe/fotografía. Presupuesto sujeto a disponibilidad.</div>
+<div class="pie" style="white-space:pre-line">${esc((l.pdfLegal || '').trim() || TXT_LEGAL_PDF_DEF)}</div>
 <script>(function(){ var hecho=false; function ir(){ if(hecho) return; hecho=true; setTimeout(function(){ window.print(); }, 300); }
   var f=(document.fonts&&document.fonts.ready)?document.fonts.ready:Promise.resolve();
   var im=Array.prototype.map.call(document.images,function(i){ return i.complete?Promise.resolve():new Promise(function(r){ i.onload=i.onerror=r; }); });

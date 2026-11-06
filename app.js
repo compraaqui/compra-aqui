@@ -2605,7 +2605,7 @@ function generarPdfLote(l) {
   const vence = l.validezDias ? new Date(hoy.getTime() + l.validezDias * 86400000) : null;
   const fmtF = d => d.toLocaleDateString('es-AR');
   const tienda = config.nombre || 'Comprá Aquí';
-  const wa = String(l.pdfWa || '').replace(/\D/g, '') || config.whatsapp || '';
+  const wa = String(l.pdfWa || '').replace(/\D/g, '');
   const ganancia = lista - precio;
   const roi = precio ? Math.round(ganancia / precio * 100) : 0;
 

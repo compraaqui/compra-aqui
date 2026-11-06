@@ -2499,7 +2499,7 @@ function datosDesdeFormLote() {
     pdfDias: Number(val('lote-pdf-dias')) || null,
     pdfGancho: val('lote-pdf-gancho'),
     pdfVentajas: val('lote-pdf-ventajas'),
-    catOpc: {fotos: !!document.getElementById('cat-fotos')?.checked, cantidad: !!document.getElementById('cat-cantidad')?.checked, precios: !!document.getElementById('cat-precios')?.checked, ref: !!document.getElementById('cat-ref')?.checked, specs: !!document.getElementById('cat-specs')?.checked, desc: !!document.getElementById('cat-desc')?.checked, notas: !!document.getElementById('cat-notas')?.checked, tema: (document.getElementById('cat-tema')?.value === 'oscuro' ? 'oscuro' : 'claro')}
+    catOpc: {fotos: !!document.getElementById('cat-fotos')?.checked, cantidad: !!document.getElementById('cat-cantidad')?.checked, precios: !!document.getElementById('cat-precios')?.checked, ref: !!document.getElementById('cat-ref')?.checked, specs: !!document.getElementById('cat-specs')?.checked, desc: !!document.getElementById('cat-desc')?.checked, notas: !!document.getElementById('cat-notas')?.checked, tema: (document.getElementById('cat-tema')?.value === 'oscuro' ? 'oscuro' : 'claro'), calidad: (document.getElementById('cat-calidad')?.value || 'media')}
   };
 }
 
@@ -2528,7 +2528,7 @@ function limpiarFormLote() {
   ['lote-pdf-wa','lote-pdf-dias','lote-pdf-gancho','lote-pdf-ventajas'].forEach(i => setVal(i, ''));
   const gr = document.getElementById('lote-pdf-graficos'); if (gr) gr.checked = true;
   ['cat-fotos','cat-cantidad','cat-precios','cat-ref','cat-specs','cat-desc','cat-notas'].forEach(id => { const c = document.getElementById(id); if (c) c.checked = true; });
-  setVal('cat-tema', 'claro');
+  setVal('cat-tema', 'claro'); setVal('cat-calidad', 'media');
   loteItems = []; loteCondiciones = []; loteSel.clear();
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
 }
@@ -2554,7 +2554,7 @@ function editarLote(id) {
   setVal('lote-pdf-wa', l.pdfWa || ''); setVal('lote-pdf-dias', l.pdfDias || '');
   setVal('lote-pdf-gancho', l.pdfGancho || ''); setVal('lote-pdf-ventajas', l.pdfVentajas || '');
   [['cat-fotos','fotos'],['cat-cantidad','cantidad'],['cat-precios','precios'],['cat-ref','ref'],['cat-specs','specs'],['cat-desc','desc'],['cat-notas','notas']].forEach(([id,k]) => { const c = document.getElementById(id); if (c) c.checked = !l.catOpc || l.catOpc[k] !== false; });
-  setVal('cat-tema', (l.catOpc && l.catOpc.tema) || 'claro');
+  setVal('cat-tema', (l.catOpc && l.catOpc.tema) || 'claro'); setVal('cat-calidad', (l.catOpc && l.catOpc.calidad) || 'media');
   renderPickerLote(); renderItemsLote(); renderCondicionesLote(); renderTotalesLote();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -2997,10 +2997,10 @@ function catalogoDesdeFormLote() {
   generarCatalogoLote(d);
 }
 
-function fotoCatalogo(url, w) {
+function fotoCatalogo(url, w, q) {
   if (!url) return '';
   return url.includes('res.cloudinary.com') && url.includes('/upload/')
-    ? url.replace('/upload/', '/upload/w_' + w + ',q_auto/') : url;
+    ? url.replace('/upload/', '/upload/w_' + w + ',q_' + (q || 'auto') + ',f_jpg/') : url;
 }
 
 function generarCatalogoLote(l) {
@@ -3012,8 +3012,10 @@ function generarCatalogoLote(l) {
   const wa = String(l.pdfWa || '').replace(/\D/g, '');
   const hoy = new Date().toLocaleDateString('es-AR');
   const unidades = items.reduce((a, i) => a + (Number(i.cant) || 0), 0);
-  const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true, tema:'claro' }, l.catOpc || {});
+  const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true, tema:'claro', calidad:'media' }, l.catOpc || {});
 
+  const CAL = { alta:{ w:900, w1:1400, q:'auto' }, media:{ w:700, w1:1000, q:70 }, liviana:{ w:500, w1:750, q:55 } };
+  const cal = CAL[op.calidad] || CAL.media;
   const oscuro = op.tema === 'oscuro';
   const cssOscuro = oscuro ? `
   html, body { background:#080c14; color:#e2e8f0; }
@@ -3059,7 +3061,7 @@ function generarCatalogoLote(l) {
     ].filter(x => x[1]) : [];
 
     const grilla = (op.fotos && fotos.length)
-      ? `<div class="foto-grid g${Math.min(fotos.length, 3)}">${fotos.map(f => `<div><img src="${esc(fotoCatalogo(f, fotos.length === 1 ? 1400 : 900))}" alt=""></div>`).join('')}</div>` : '';
+      ? `<div class="foto-grid g${Math.min(fotos.length, 3)}">${fotos.map(f => `<div><img src="${esc(fotoCatalogo(f, fotos.length === 1 ? cal.w1 : cal.w, cal.q))}" alt=""></div>`).join('')}</div>` : '';
 
     const precios = [];
     if (op.cantidad) precios.push(`<div><span>En el lote</span><strong>${it.cant} u.</strong></div>`);

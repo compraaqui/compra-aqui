@@ -968,6 +968,9 @@ async function guardarProducto() {
     exclusivo:     exclusivo ? Number(exclusivo) : null,
     paraVos:       val('np-para-vos'),
     testimonio:    val('np-testimonio'),
+    mostrarExclusivo:  !!document.getElementById('np-mostrar-exclusivo')?.checked,
+    mostrarParaVos:    !!document.getElementById('np-mostrar-paravos')?.checked,
+    mostrarTestimonio: !!document.getElementById('np-mostrar-testimonio')?.checked,
     nombre, descripcion, precio: Number(precio),
     precioAnterior: precioAnterior ? Number(precioAnterior) : null,
     ofertaHasta:    ofertaHasta || null,
@@ -1016,6 +1019,9 @@ function limpiarFormNuevo() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  ['np-mostrar-exclusivo','np-mostrar-paravos','np-mostrar-testimonio'].forEach(id => {
+    const c = document.getElementById(id); if (c) c.checked = false;
+  });
   const dsel = document.getElementById('np-desarma');
   const msel = document.getElementById('np-moneda');
   if (dsel) dsel.value = '';
@@ -1063,6 +1069,9 @@ function abrirEditar(id) {
   setVal('edit-exclusivo',      p.exclusivo || '');
   setVal('edit-para-vos',       p.paraVos || '');
   setVal('edit-testimonio',     p.testimonio || '');
+  const meX = document.getElementById('edit-mostrar-exclusivo');  if (meX) meX.checked = !!p.mostrarExclusivo;
+  const meP = document.getElementById('edit-mostrar-paravos');    if (meP) meP.checked = !!p.mostrarParaVos;
+  const meT = document.getElementById('edit-mostrar-testimonio'); if (meT) meT.checked = !!p.mostrarTestimonio;
   const eoh = document.getElementById('edit-oferta-hasta');
   if (eoh) eoh.value = p.ofertaHasta ? p.ofertaHasta.slice(0,16) : '';
   const editCond = document.getElementById('edit-condicion');
@@ -1122,6 +1131,9 @@ async function guardarEdicion() {
     exclusivo:     editExcl ? Number(editExcl) : null,
     paraVos:       val('edit-para-vos'),
     testimonio:    val('edit-testimonio'),
+    mostrarExclusivo:  !!document.getElementById('edit-mostrar-exclusivo')?.checked,
+    mostrarParaVos:    !!document.getElementById('edit-mostrar-paravos')?.checked,
+    mostrarTestimonio: !!document.getElementById('edit-mostrar-testimonio')?.checked,
     nombre, descripcion, precio: Number(precio),
     precioAnterior: editPrecioAnt ? Number(editPrecioAnt) : null,
     ofertaHasta:    editOferta || null,
@@ -2122,7 +2134,7 @@ function chipsUrgencia(p, grande) {
   if (!isNaN(cant) && cant >= 1 && cant <= 3) {
     chips.push(`<span class="chip-urgencia chip-ultimas">🔥 ${cant === 1 ? '¡Última unidad!' : '¡Últimas ' + cant + ' unidades!'}</span>`);
   }
-  if (p.exclusivo) {
+  if (p.exclusivo && p.mostrarExclusivo) {
     chips.push(`<span class="chip-urgencia chip-exclusivo">💎 Exclusivo: solo ${p.exclusivo} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo</span>`);
   }
   if (!chips.length) return '';
@@ -2151,8 +2163,8 @@ function bloquesEmocionales(p) {
   const esp  = (config.esperanza || '').trim() || TXT_ESPERANZA_DEF;
   const flex = (config.flex || '').trim()      || TXT_FLEX_DEF;
   return `<div class="bloques-emo">
-    ${p.paraVos ? `<div class="bloque-emo bloque-paravos"><strong>💛 Esto es para vos si...</strong><span>${esc(p.paraVos)}</span></div>` : ''}
-    ${p.testimonio ? `<div class="bloque-emo bloque-identif"><strong>🙋 Yo estuve ahí, y pude. Vos también podés.</strong><span>${esc(p.testimonio)}</span></div>` : ''}
+    ${(p.paraVos && p.mostrarParaVos) ? `<div class="bloque-emo bloque-paravos"><strong>💛 Esto es para vos si...</strong><span>${esc(p.paraVos)}</span></div>` : ''}
+    ${(p.testimonio && p.mostrarTestimonio) ? `<div class="bloque-emo bloque-identif"><strong>🙋 Yo estuve ahí, y pude. Vos también podés.</strong><span>${esc(p.testimonio)}</span></div>` : ''}
     <div class="bloque-emo bloque-esperanza"><strong>🌱 Sí se puede</strong><span>${esc(esp)}</span></div>
     <div class="bloque-emo bloque-flex"><strong>🐢 Sin apuro</strong><span>${esc(flex)}</span></div>
   </div>`;
@@ -3072,11 +3084,11 @@ function generarCatalogoLote(l) {
     if (op.ref && p && p.precioAnterior) precios.push(`<div><span>Precio de referencia</span><strong class="tach">${formatPrecio(p.precioAnterior, mp)}</strong></div>`);
 
     const bloques = [];
-    if (op.desc && p && p.exclusivo) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
+    if (op.desc && p && p.exclusivo && p.mostrarExclusivo) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
     if (op.desc && p && p.descripcion) bloques.push(`<div class="txt"><h4>Descripción</h4><div>${esc(p.descripcion)}</div></div>`);
     if (op.notas && p && p.notas) bloques.push(`<div class="txt"><h4>Notas</h4><div>${esc(p.notas)}</div></div>`);
-    if (op.desc && p && p.paraVos) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
-    if (op.desc && p && p.testimonio) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
+    if (op.desc && p && p.paraVos && p.mostrarParaVos) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
+    if (op.desc && p && p.testimonio && p.mostrarTestimonio) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
 
     return `<section class="prod">
       <div class="prod-head"><span class="num">${n + 1}</span><h2>${esc(nombre)}</h2></div>

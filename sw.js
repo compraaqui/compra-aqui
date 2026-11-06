@@ -4,7 +4,7 @@
 // Este archivo activa el botón "Instalar app" en Chrome.
 // También guarda la app en caché para que cargue más rápido.
 
-const CACHE_NAME = 'compraqui-v5';
+const CACHE_NAME = 'compraqui-v6';
 
 // Archivos que se guardan offline
 const ARCHIVOS_CACHE = [

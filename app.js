@@ -968,9 +968,9 @@ async function guardarProducto() {
     exclusivo:     exclusivo ? Number(exclusivo) : null,
     paraVos:       val('np-para-vos'),
     testimonio:    val('np-testimonio'),
-    mostrarExclusivo:  !!document.getElementById('np-mostrar-exclusivo')?.checked,
-    mostrarParaVos:    !!document.getElementById('np-mostrar-paravos')?.checked,
-    mostrarTestimonio: !!document.getElementById('np-mostrar-testimonio')?.checked,
+    mostrarExclusivo: !!document.getElementById('np-mostrar-exclusivo')?.checked,
+    mostrarParaVos:   !!document.getElementById('np-mostrar-paravos')?.checked,
+    mostrarHistoria:  !!document.getElementById('np-mostrar-historia')?.checked,
     nombre, descripcion, precio: Number(precio),
     precioAnterior: precioAnterior ? Number(precioAnterior) : null,
     ofertaHasta:    ofertaHasta || null,
@@ -1019,13 +1019,11 @@ function limpiarFormNuevo() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  ['np-mostrar-exclusivo','np-mostrar-paravos','np-mostrar-testimonio'].forEach(id => {
-    const c = document.getElementById(id); if (c) c.checked = false;
-  });
   const dsel = document.getElementById('np-desarma');
   const msel = document.getElementById('np-moneda');
   if (dsel) dsel.value = '';
   if (msel) msel.value = 'ARS';
+  ['np-mostrar-exclusivo','np-mostrar-paravos','np-mostrar-historia'].forEach(id => { const c = document.getElementById(id); if (c) c.checked = false; });
   // Resetear uploader
   fotosSubidas['np'] = [];
   const npPreview = document.getElementById('np-fotos-preview');
@@ -1069,9 +1067,7 @@ function abrirEditar(id) {
   setVal('edit-exclusivo',      p.exclusivo || '');
   setVal('edit-para-vos',       p.paraVos || '');
   setVal('edit-testimonio',     p.testimonio || '');
-  const meX = document.getElementById('edit-mostrar-exclusivo');  if (meX) meX.checked = !!p.mostrarExclusivo;
-  const meP = document.getElementById('edit-mostrar-paravos');    if (meP) meP.checked = !!p.mostrarParaVos;
-  const meT = document.getElementById('edit-mostrar-testimonio'); if (meT) meT.checked = !!p.mostrarTestimonio;
+  [['edit-mostrar-exclusivo','mostrarExclusivo'],['edit-mostrar-paravos','mostrarParaVos'],['edit-mostrar-historia','mostrarHistoria']].forEach(([id,k]) => { const c = document.getElementById(id); if (c) c.checked = p[k] === true; });
   const eoh = document.getElementById('edit-oferta-hasta');
   if (eoh) eoh.value = p.ofertaHasta ? p.ofertaHasta.slice(0,16) : '';
   const editCond = document.getElementById('edit-condicion');
@@ -1131,9 +1127,9 @@ async function guardarEdicion() {
     exclusivo:     editExcl ? Number(editExcl) : null,
     paraVos:       val('edit-para-vos'),
     testimonio:    val('edit-testimonio'),
-    mostrarExclusivo:  !!document.getElementById('edit-mostrar-exclusivo')?.checked,
-    mostrarParaVos:    !!document.getElementById('edit-mostrar-paravos')?.checked,
-    mostrarTestimonio: !!document.getElementById('edit-mostrar-testimonio')?.checked,
+    mostrarExclusivo: !!document.getElementById('edit-mostrar-exclusivo')?.checked,
+    mostrarParaVos:   !!document.getElementById('edit-mostrar-paravos')?.checked,
+    mostrarHistoria:  !!document.getElementById('edit-mostrar-historia')?.checked,
     nombre, descripcion, precio: Number(precio),
     precioAnterior: editPrecioAnt ? Number(editPrecioAnt) : null,
     ofertaHasta:    editOferta || null,
@@ -2134,7 +2130,7 @@ function chipsUrgencia(p, grande) {
   if (!isNaN(cant) && cant >= 1 && cant <= 3) {
     chips.push(`<span class="chip-urgencia chip-ultimas">🔥 ${cant === 1 ? '¡Última unidad!' : '¡Últimas ' + cant + ' unidades!'}</span>`);
   }
-  if (p.exclusivo && p.mostrarExclusivo) {
+  if (p.exclusivo && p.mostrarExclusivo === true) {
     chips.push(`<span class="chip-urgencia chip-exclusivo">💎 Exclusivo: solo ${p.exclusivo} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo</span>`);
   }
   if (!chips.length) return '';
@@ -2163,8 +2159,8 @@ function bloquesEmocionales(p) {
   const esp  = (config.esperanza || '').trim() || TXT_ESPERANZA_DEF;
   const flex = (config.flex || '').trim()      || TXT_FLEX_DEF;
   return `<div class="bloques-emo">
-    ${(p.paraVos && p.mostrarParaVos) ? `<div class="bloque-emo bloque-paravos"><strong>💛 Esto es para vos si...</strong><span>${esc(p.paraVos)}</span></div>` : ''}
-    ${(p.testimonio && p.mostrarTestimonio) ? `<div class="bloque-emo bloque-identif"><strong>🙋 Yo estuve ahí, y pude. Vos también podés.</strong><span>${esc(p.testimonio)}</span></div>` : ''}
+    ${(p.paraVos && p.mostrarParaVos === true) ? `<div class="bloque-emo bloque-paravos"><strong>💛 Esto es para vos si...</strong><span>${esc(p.paraVos)}</span></div>` : ''}
+    ${(p.testimonio && p.mostrarHistoria === true) ? `<div class="bloque-emo bloque-identif"><strong>🙋 Yo estuve ahí, y pude. Vos también podés.</strong><span>${esc(p.testimonio)}</span></div>` : ''}
     <div class="bloque-emo bloque-esperanza"><strong>🌱 Sí se puede</strong><span>${esc(esp)}</span></div>
     <div class="bloque-emo bloque-flex"><strong>🐢 Sin apuro</strong><span>${esc(flex)}</span></div>
   </div>`;
@@ -2190,7 +2186,7 @@ function calcLote(l) {
   const items = l.items || [];
   const unidades = items.reduce((a, i) => a + i.cant, 0);
   const reventaTotal = items.reduce((a, i) => a + i.cant * i.reventa, 0);
-  const yaVigente = l.precioYa && l.yaHasta && new Date(l.yaHasta) > new Date();
+  const yaVigente = !!(l.precioYa && (!l.yaHasta || new Date(l.yaHasta) > new Date()));
   const pagar = yaVigente ? l.precioYa : l.precio;
   const ganancia = reventaTotal - pagar;
   return {
@@ -2247,7 +2243,7 @@ function verLote(id) {
     ${l.descripcion ? `<div class="detalle-desc">${esc(l.descripcion)}</div>` : ''}
     ${c.yaVigente ? `<div class="lote-ya-box">
         <div class="detalle-oferta-label">⚡ PRECIO ESPECIAL SI CONFIRMÁS YA</div>
-        <div class="detalle-countdown" data-hasta="${l.yaHasta}">⏳ ...</div>
+        ${l.yaHasta ? `<div class="detalle-countdown" data-hasta="${l.yaHasta}">⏳ ...</div>` : ''}
         <div class="lote-ya-sub">Después vuelve a <s>${formatPrecio(l.precio, m)}</s></div>
       </div>` : ''}
     <div class="lote-numeros">
@@ -2609,7 +2605,8 @@ function generarPdfLote(l) {
   const items = l.items || [];
   const unidades = items.reduce((a, i) => a + i.cant, 0);
   const lista = items.reduce((a, i) => a + i.cant * (i.reventa || 0), 0);
-  const yaVigente = l.precioYa && l.yaHasta && new Date(l.yaHasta) > new Date();
+  // Súper precio "confirmá YA": vale si está cargado y (no tiene vencimiento, o todavía no venció).
+  const yaVigente = !!(l.precioYa && (!l.yaHasta || new Date(l.yaHasta) > new Date()));
   const precio = l.precio;
   const ahorroLote = Math.max(0, lista - precio);
   const conFotos = l.pdfFotos !== false && items.some(i => i.foto);
@@ -2643,6 +2640,22 @@ function generarPdfLote(l) {
   const pBest = Math.min(precio, ...finales, yaVigente ? l.precioYa : precio);
   const gBest = lista - pBest;
   const roiBest = pBest ? Math.round(gBest / pBest * 100) : 0;
+
+  // ── SÚPER PRECIO: el mejor precio disponible manda en todo el PDF ──
+  const pYa = yaVigente ? l.precioYa : 0;
+  const yaEsMejor = yaVigente && pYa <= pBest;
+  const ahorroTotal = Math.max(0, lista - pBest);
+  const ahorroTotalPct = lista ? Math.round(ahorroTotal / lista * 100) : 0;
+  const descYaPct = precio ? Math.max(0, Math.round((1 - pYa / precio) * 100)) : 0;
+  const porCada100 = lista ? Math.round(pBest / lista * 100) : 0;
+  const finYa = (yaVigente && l.yaHasta) ? new Date(l.yaHasta) : null;
+  const finYaTxt = finYa ? finYa.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  let quedaTxt = '';
+  if (finYa) {
+    const ms = finYa - hoy, dd = Math.floor(ms / 86400000), hh = Math.floor((ms % 86400000) / 3600000);
+    quedaTxt = dd > 0 ? `quedan ${dd} ${dd === 1 ? 'día' : 'días'} y ${hh} hs` : `quedan solo ${Math.max(1, hh)} hs`;
+  }
+  const mostrarSuper = (persuasivo || yaVigente) && lista > 0 && pBest < lista;
   const equilibrio = lista ? Math.min(100, Math.round(pBest / lista * 100)) : 0;   // % del lote que hay que vender para recuperar lo invertido
   const pct = n => Math.max(0, Math.min(100, n));
   const waLimpio = String(wa).replace(/\D/g, '');
@@ -2697,6 +2710,7 @@ function generarPdfLote(l) {
 
   // Ventajas: las automáticas salen de los datos reales del lote + las tuyas
   const ventajas = [];
+  if (yaEsMejor) ventajas.push(`<strong>Súper precio de ${fp(pYa)}</strong>: ahorrás <strong>${fp(ahorroTotal)}</strong> (${ahorroTotalPct}%) frente a comprar producto por producto${finYa ? ', válido hasta el ' + finYaTxt : ''}.`);
   if (ahorroLote > 0 && lista) ventajas.push(`Comprás el lote completo con <strong>${Math.round(ahorroLote / lista * 100)}% menos</strong> que el valor de los productos sueltos.`);
   if (unidades > 1) ventajas.push(`<strong>${unidades} unidades en una sola compra</strong>: un solo trato, un solo retiro, mayor variedad para tu local.`);
   if (unidades && pBest) ventajas.push(`Costo por unidad desde <strong>${fp(Math.round(pBest / unidades))}</strong>.`);
@@ -2706,8 +2720,32 @@ function generarPdfLote(l) {
   if (vence) ventajas.push(`Precio garantizado hasta el <strong>${fmtF(vence)}</strong>.`);
   (l.pdfVentajas || '').split('\n').map(x => x.trim()).filter(Boolean).forEach(v => ventajas.push(esc(v)));
 
+  // Escalera de precios: de lo más caro a lo más barato, el mejor resaltado
+  const peldanos = [{ t: 'Comprando producto por producto', v: lista, cls: 'tach' }];
+  if (precio < lista) peldanos.push({ t: 'Precio del lote completo' + (lista ? ' (−' + Math.round((1 - precio / lista) * 100) + '%)' : ''), v: precio, cls: '' });
+  (l.condiciones || []).forEach(c => {
+    const fin = aplicarDescLote(precio, c.tipo, c.valor);
+    if (fin > 0 && fin < precio) peldanos.push({ t: c.label + ' (' + (c.tipo === '$' ? '−' + fp(c.valor) : '−' + c.valor + '%') + ')', v: fin, cls: '' });
+  });
+  if (yaVigente) peldanos.push({ t: 'Súper precio confirmando ya' + (finYaTxt ? ' · hasta el ' + finYaTxt : ''), v: pYa, cls: '' });
+  const minPeld = Math.min(...peldanos.map(x => x.v));
+  const escalera = peldanos.map(x => `<div class="esc-row${x.v === minPeld && peldanos.length > 1 ? ' esc-best' : ''}"><span>${esc(x.t)}${(x.v === minPeld && peldanos.length > 1) ? ' <b>MEJOR PRECIO</b>' : ''}</span><strong class="${x.cls}">${x.cls === 'tach' ? '<s>' + fp(x.v) + '</s>' : fp(x.v)}</strong></div>`).join('');
+
+  const bloqueSuper = mostrarSuper ? `<div class="super">
+    <div class="super-k">${yaEsMejor ? 'SÚPER PRECIO · OPORTUNIDAD IMPERDIBLE' : 'TU MEJOR PRECIO'}</div>
+    <div class="super-p">${fp(pBest)}</div>
+    <div class="super-s">en lugar de <s>${fp(lista)}</s> · ahorrás <strong>${fp(ahorroTotal)}</strong> (${ahorroTotalPct}% menos)</div>
+    ${yaEsMejor ? `<div class="super-t">${finYa ? 'Válido hasta el ' + finYaTxt + ' · ' + quedaTxt : 'Precio especial por confirmar ya'}</div>` : ''}
+    <div class="esc">${escalera}</div>
+    <div class="super-g">
+      <div><span>Pagás por cada $100 de mercadería</span><strong>$${porCada100}</strong></div>
+      <div><span>Costo por unidad</span><strong>${fp(unidades ? Math.round(pBest / unidades) : 0)}</strong></div>
+      ${(verGan && gBest > 0) ? `<div><span>Ganancia estimada</span><strong>${fp(gBest)}</strong></div>` : ''}
+    </div>
+  </div>` : '';
+
   const bloqueHero = persuasivo ? `<div class="hero">
-    <div class="hero-tag">OPORTUNIDAD DE NEGOCIO</div>
+    <div class="hero-tag">${yaEsMejor ? 'SÚPER PRECIO · OPORTUNIDAD IMPERDIBLE' : 'OPORTUNIDAD DE NEGOCIO'}</div>
     <div class="hero-t">${esc(l.pdfGancho || 'Un lote completo listo para revender y ganar')}</div>
     ${verGan ? `<div class="hero-nums">
       <div><span>Invertís desde</span><strong>${fp(pBest)}</strong></div>
@@ -2728,7 +2766,7 @@ function generarPdfLote(l) {
   ${ventajas.length ? `<h2 class="sec">Por qué conviene este lote</h2><div class="caja ventajas"><ul>${ventajas.map(v => `<li>${v}</li>`).join('')}</ul></div>` : ''}` : '';
 
   const bloqueCta = persuasivo ? `<div class="cta">
-    <div class="cta-t">¿Lo reservamos? ${yaVigente ? 'El precio especial vence pronto.' : (vence ? 'El presupuesto vence el ' + fmtF(vence) + '.' : '')}</div>
+    <div class="cta-t">¿Lo reservamos? ${yaEsMejor ? (finYa ? 'El súper precio de ' + fp(pYa) + ' vence el ' + finYaTxt + '.' : 'Reservalo ya y quedate con el súper precio de ' + fp(pYa) + '.') : (vence ? 'El presupuesto vence el ' + fmtF(vence) + '.' : '')}</div>
     ${waFmt ? `<div class="cta-n">${esc(waFmt)}</div><a class="cta-b" href="${esc(waLinkPdf)}">Escribime por WhatsApp</a>` : ''}
   </div>` : '';
 
@@ -2941,6 +2979,24 @@ function generarPdfLote(l) {
   .conf div { padding:2px 0; }
   .conf strong { display:block; font-size:10.5px; font-weight:600; color:var(--navy); }
   .conf span { display:block; font-size:9.5px; color:var(--mut); }
+  /* Súper precio (misma paleta del PDF) */
+  .super { background:linear-gradient(135deg,var(--navy),var(--navy2)); color:#fff; border-radius:14px; padding:18px 22px; margin:0 0 14px; text-align:center; page-break-inside:avoid; break-inside:avoid; }
+  .super-k { font-size:10px; letter-spacing:3px; font-weight:700; color:var(--goldl); }
+  .super-p { font-size:40px; font-weight:800; letter-spacing:-1px; line-height:1.1; margin:6px 0 2px; }
+  .super-s { font-size:12px; color:#dbe4f5; }
+  .super-s s { color:#fca5a5; }
+  .super-s strong { color:#6ee7b7; }
+  .super-t { display:inline-block; margin-top:8px; padding:3px 14px; border:1px solid var(--goldl); color:var(--goldl); border-radius:999px; font-size:10px; font-weight:700; letter-spacing:1px; }
+  .esc { margin:14px 0 10px; text-align:left; }
+  .esc-row { display:flex; justify-content:space-between; gap:10px; padding:6px 10px; border-radius:8px; font-size:11px; background:rgba(255,255,255,.08); margin-bottom:4px; }
+  .esc-row strong { font-weight:700; } .esc-row s { color:#fca5a5; }
+  .esc-row.esc-best { background:#fff; color:var(--navy); } .esc-row.esc-best b { background:var(--ok); color:#fff; font-size:8.5px; letter-spacing:1px; padding:1px 7px; border-radius:999px; margin-left:6px; }
+  .super-g { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; }
+  .super-g div { background:rgba(255,255,255,.12); border-radius:8px; padding:8px; }
+  .super-g span { display:block; font-size:8.5px; text-transform:uppercase; letter-spacing:.8px; opacity:.9; }
+  .super-g strong { display:block; font-size:16px; font-weight:800; margin-top:2px; }
+  tr.ya-row td { background:#eff6ff; }
+  .tot .big.ya-tot { border-top:0; margin-top:0; color:var(--ok); }
   @media (max-width:640px) { .gana-g, .kpi3 { grid-template-columns:1fr; } .pasos { grid-template-columns:1fr; } .pasos .flecha { display:none; } }
 </style></head><body>
 <div class="barra"><button onclick="window.print()">🖨️ Imprimir / Guardar como PDF</button></div>
@@ -2955,6 +3011,7 @@ function generarPdfLote(l) {
   </div>
 </div>
 ${bloqueHero}
+${bloqueSuper}
 ${bloqueUnico}
 ${bloqueGanando}
 <h2>${esc(l.nombre)}</h2>
@@ -2968,12 +3025,13 @@ ${l.descripcion ? `<div class="muted" style="white-space:pre-line">${esc(l.descr
   <div><span>Valor total de los productos</span><span>${fp(lista)}</span></div>
   ${ahorroLote > 0 ? `<div><span>Descuento por llevar el lote completo</span><span>− ${fp(ahorroLote)}${lista ? ' (' + Math.round(ahorroLote / lista * 100) + '%)' : ''}</span></div>` : ''}
   <div class="big"><span>PRECIO DEL LOTE</span><span>${fp(precio)}</span></div>
+  ${yaVigente ? `<div class="big ya-tot"><span>SÚPER PRECIO (confirmando ya)</span><span>${fp(pYa)}</span></div>` : ''}
   <div class="muted"><span>Costo promedio por unidad</span><span>${fp(unidades ? Math.round(precio / unidades) : 0)}</span></div>
 </div>
-${yaVigente ? `<div class="caja ya"><strong>Precio especial si confirmás antes del ${new Date(l.yaHasta).toLocaleString('es-AR', {dateStyle:'short', timeStyle:'short'})}:</strong> ${fp(l.precioYa)}</div>` : ''}
-${condiciones ? `<h2 style="margin-top:14px">Formas de pago y descuentos</h2>
-<table><thead><tr><th>Condición</th><th class="c">Descuento</th><th class="r">Precio final</th><th class="r">Ahorrás</th></tr></thead><tbody>${condiciones}</tbody></table>` : ''}
-${(l.pdfGanancia !== false && lista > 0) ? `<div class="caja verde"><strong>Potencial de reventa:</strong> vendiendo los productos a su valor (${fp(lista)}) y pagando el lote ${fp(precio)}, el margen estimado es de <strong>${fp(ganancia)}</strong> (${roi}% sobre lo invertido). Aun vendiendo solo al 70%, el resultado estimado sería de ${fp(Math.round(lista * 0.7 - precio))}.${pBest < precio ? ' Con tu mejor forma de pago (' + fp(pBest) + ') el margen asciende a <strong>' + fp(gBest) + '</strong> (' + roiBest + '%).' : ''}</div>` : ''}
+${(yaVigente && !mostrarSuper) ? `<div class="caja ya"><strong>Súper precio si confirmás ya${finYaTxt ? ' (antes del ' + finYaTxt + ')' : ''}:</strong> ${fp(pYa)}</div>` : ''}
+${(condiciones || yaVigente) ? `<h2 style="margin-top:14px">Formas de pago y descuentos</h2>
+<table><thead><tr><th>Condición</th><th class="c">Descuento</th><th class="r">Precio final</th><th class="r">Ahorrás</th></tr></thead><tbody>${yaVigente ? `<tr class="ya-row"><td><strong>Súper precio si confirmás ya${finYaTxt ? ' (hasta el ' + finYaTxt + ')' : ''}</strong></td><td class="c">− ${descYaPct}%</td><td class="r"><strong>${fp(pYa)}</strong></td><td class="r">${precio - pYa > 0 ? fp(precio - pYa) : '—'}</td></tr>` : ''}${condiciones}</tbody></table>` : ''}
+${(l.pdfGanancia !== false && lista > 0) ? `<div class="caja verde"><strong>Potencial de reventa:</strong> vendiendo los productos a su valor (${fp(lista)}) y pagando el lote ${fp(precio)}, el margen estimado es de <strong>${fp(ganancia)}</strong> (${roi}% sobre lo invertido).${pBest < precio ? ' Con tu mejor precio (' + (yaEsMejor ? 'súper precio ' : '') + fp(pBest) + ') el margen asciende a <strong>' + fp(gBest) + '</strong> (' + roiBest + '%).' : ''} Aun vendiendo solo al 70% del valor, con tu mejor precio el resultado estimado sería de <strong>${fp(Math.max(0, Math.round(lista * 0.7 - pBest)))}</strong>.</div>` : ''}
 ${bloqueGraficos}
 ${bloqueIndicadores}
 ${bloqueResistencia}
@@ -3084,11 +3142,11 @@ function generarCatalogoLote(l) {
     if (op.ref && p && p.precioAnterior) precios.push(`<div><span>Precio de referencia</span><strong class="tach">${formatPrecio(p.precioAnterior, mp)}</strong></div>`);
 
     const bloques = [];
-    if (op.desc && p && p.exclusivo && p.mostrarExclusivo) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
+    if (op.desc && p && p.exclusivo && p.mostrarExclusivo === true) bloques.push(`<div class="nota"><strong>Exclusivo</strong> solo ${esc(p.exclusivo)} ${Number(p.exclusivo) === 1 ? 'unidad' : 'unidades'} en el mundo.</div>`);
     if (op.desc && p && p.descripcion) bloques.push(`<div class="txt"><h4>Descripción</h4><div>${esc(p.descripcion)}</div></div>`);
     if (op.notas && p && p.notas) bloques.push(`<div class="txt"><h4>Notas</h4><div>${esc(p.notas)}</div></div>`);
-    if (op.desc && p && p.paraVos && p.mostrarParaVos) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
-    if (op.desc && p && p.testimonio && p.mostrarTestimonio) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
+    if (op.desc && p && p.paraVos && p.mostrarParaVos === true) bloques.push(`<div class="txt"><h4>Esto es para vos si...</h4><div>${esc(p.paraVos)}</div></div>`);
+    if (op.desc && p && p.testimonio && p.mostrarHistoria === true) bloques.push(`<div class="txt"><h4>Historia</h4><div>${esc(p.testimonio)}</div></div>`);
 
     return `<section class="prod">
       <div class="prod-head"><span class="num">${n + 1}</span><h2>${esc(nombre)}</h2></div>

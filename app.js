@@ -3009,7 +3009,7 @@ function generarCatalogoLote(l) {
   const fp = n => formatPrecio(n, m);
   const items = l.items || [];
   const tienda = config.nombre || 'Comprá Aquí';
-  const wa = String(l.pdfWa || '').replace(/\D/g, '') || config.whatsapp || '';
+  const wa = String(l.pdfWa || '').replace(/\D/g, '');
   const hoy = new Date().toLocaleDateString('es-AR');
   const unidades = items.reduce((a, i) => a + (Number(i.cant) || 0), 0);
   const op = Object.assign({ fotos:true, cantidad:true, precios:true, ref:true, specs:true, desc:true, notas:true, tema:'claro' }, l.catOpc || {});
